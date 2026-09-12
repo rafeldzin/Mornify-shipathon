@@ -1,0 +1,16 @@
+export const theme = {
+  nightBg: '#0B1120',
+  nightSurface: '#151E32',
+  nightBorder: '#253150',
+  nightText: '#E6E8EF',
+  nightMuted: '#8B94AD',
+  nightAccent: '#6C7BFF',
+  sleepingBg: '#070C16',
+  dawnBg: '#FFF8F0',
+  dawnSurface: '#FFFFFF',
+  dawnBorder: '#F0E4D4',
+  dawnText: '#1A1614',
+  dawnMuted: '#7A6E63',
+  dawnAccent: '#F59332',
+  streakFlame: '#E4572E',
+};

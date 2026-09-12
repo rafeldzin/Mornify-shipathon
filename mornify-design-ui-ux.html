@@ -1,0 +1,868 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Mornify — UI/UX canvas</title>
+<style>
+:root{
+--night-bg:#0B1120; --night-surface:#151E32; --night-border:#253150;
+--night-text:#E6E8EF; --night-muted:#8B94AD; --night-accent:#6C7BFF;
+--dawn-bg:#FFF8F0; --dawn-surface:#FFFFFF; --dawn-border:#F0E4D4;
+--dawn-text:#1A1614; --dawn-muted:#7A6E63; --dawn-accent:#F59332;
+--flame:#E4572E;
+--canvas:#E9E7E2; --panel:#FFFFFF; --line:#D6D2CA; --ink:#1F1D1A; --ink2:#6B655C;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+body{background:var(--canvas);color:var(--ink);font:400 15px/1.6 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;padding:48px 32px 96px}
+.wrap{max-width:1440px;margin:0 auto}
+
+h1{font-size:30px;font-weight:600;letter-spacing:-.02em}
+h2{font-size:20px;font-weight:600;letter-spacing:-.01em}
+h3{font-size:14px;font-weight:600}
+.sub{color:var(--ink2);font-size:15px;margin-top:6px}
+.meta{color:var(--ink2);font-size:13px;margin-top:14px}
+
+header{border-bottom:1px solid var(--line);padding-bottom:28px;margin-bottom:40px}
+
+section{margin:56px 0 0}
+.shead{display:flex;align-items:baseline;gap:14px;flex-wrap:wrap;margin-bottom:6px}
+.snum{font:600 12px/1 -apple-system,sans-serif;color:#fff;background:var(--ink);padding:6px 9px;border-radius:5px}
+.sdesc{color:var(--ink2);font-size:14px;max-width:720px;margin:8px 0 26px}
+
+.row{display:flex;gap:0;align-items:flex-start;flex-wrap:wrap;row-gap:44px}
+
+.slot{width:264px;flex:0 0 auto}
+.cap{font-size:12px;font-weight:600;margin-bottom:3px}
+.capid{font:400 11px/1.4 ui-monospace,SFMono-Regular,Menlo,monospace;color:var(--ink2);margin-bottom:9px}
+.note{font-size:11.5px;line-height:1.55;color:var(--ink2);margin-top:9px;padding-left:9px;border-left:2px solid var(--line)}
+
+.arrow{width:96px;flex:0 0 auto;padding:150px 10px 0;text-align:center}
+.arrow .ln{font-size:17px;color:#9A948B;line-height:1}
+.arrow .tx{font-size:10.5px;line-height:1.45;color:var(--ink2);margin-top:7px}
+
+.phone{width:264px;height:548px;border-radius:26px;overflow:hidden;position:relative;display:flex;flex-direction:column;border:1px solid var(--line)}
+.night{background:var(--night-bg);color:var(--night-text)}
+.dawn{background:var(--dawn-bg);color:var(--dawn-text)}
+
+.sb{height:26px;flex:0 0 auto;display:flex;align-items:center;justify-content:space-between;padding:0 16px;font-size:10px;letter-spacing:.02em;opacity:.55}
+.body{flex:1;padding:14px 18px;display:flex;flex-direction:column;min-height:0;overflow:hidden}
+.body.pad0{padding:0}
+.center{justify-content:center;align-items:center;text-align:center}
+.grow{flex:1}
+
+.ph{display:inline-flex;align-items:center;justify-content:center;border:1px dashed currentColor;border-radius:4px;font:400 8.5px/1 ui-monospace,Menlo,monospace;opacity:.42;padding:0 4px;height:20px;min-width:20px;letter-spacing:-.01em}
+.ph.lg{height:52px;min-width:52px;border-radius:12px;font-size:9px}
+.ph.xl{height:76px;min-width:76px;border-radius:18px;font-size:9.5px}
+
+.kicker{font-size:10.5px;letter-spacing:.06em;text-transform:uppercase;opacity:.55}
+.h-l{font-size:22px;font-weight:600;letter-spacing:-.01em;line-height:1.25}
+.h-m{font-size:17px;font-weight:600;line-height:1.3}
+.p{font-size:12.5px;line-height:1.55;opacity:.72}
+.p-s{font-size:11px;line-height:1.5;opacity:.6}
+
+.time-xl{font-size:54px;font-weight:300;letter-spacing:-.035em;line-height:1;font-variant-numeric:tabular-nums}
+.time-l{font-size:34px;font-weight:300;letter-spacing:-.03em;line-height:1;font-variant-numeric:tabular-nums}
+.time-m{font-size:19px;font-weight:400;letter-spacing:-.01em;font-variant-numeric:tabular-nums}
+
+.btn{display:flex;align-items:center;justify-content:center;height:46px;border-radius:23px;font-size:14px;font-weight:500;width:100%}
+.btn-n{background:var(--night-accent);color:#fff}
+.btn-d{background:var(--dawn-accent);color:#fff}
+.btn-ghost-n{background:transparent;border:1px solid var(--night-border);color:var(--night-text)}
+.btn-ghost-d{background:transparent;border:1px solid var(--dawn-border);color:var(--dawn-text)}
+.link{font-size:12px;text-align:center;opacity:.6;padding:12px 0}
+
+.field{border-bottom:1px solid var(--night-border);padding:10px 0 9px;font-size:17px}
+.field.d{border-color:var(--dawn-border)}
+.field .plc{opacity:.34}
+
+.card-n{background:var(--night-surface);border:1px solid var(--night-border);border-radius:14px;padding:13px 15px}
+.card-d{background:var(--dawn-surface);border:1px solid var(--dawn-border);border-radius:14px;padding:13px 15px}
+
+.nav{height:52px;flex:0 0 auto;display:flex;border-top:1px solid var(--night-border)}
+.nav.d{border-color:var(--dawn-border)}
+.nav div{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;font-size:9.5px;opacity:.45}
+.nav div.on{opacity:1}
+
+.streak{display:inline-flex;align-items:baseline;gap:5px}
+.streak b{font-size:16px;font-weight:600;color:var(--flame);font-variant-numeric:tabular-nums}
+
+.mrow{display:flex;align-items:center;gap:9px;padding:9px 0;border-bottom:1px solid var(--dawn-border)}
+.mrow:last-child{border:none}
+.av{width:26px;height:26px;border-radius:50%;background:var(--dawn-border);flex:0 0 auto;display:flex;align-items:center;justify-content:center;font-size:9.5px;font-weight:600;color:var(--dawn-muted)}
+.av.n{background:var(--night-border);color:var(--night-muted)}
+.mname{flex:1;font-size:12.5px;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.mtime{font-size:12.5px;font-variant-numeric:tabular-nums;opacity:.7}
+.rank{font-size:10.5px;width:15px;opacity:.45;font-variant-numeric:tabular-nums}
+.you{background:rgba(245,147,50,.09);margin:0 -8px;padding-left:8px;padding-right:8px;border-radius:7px}
+
+.banner{border-radius:10px;padding:9px 11px;font-size:11px;line-height:1.5}
+.b-warn{background:rgba(228,87,46,.13);color:#F0997B}
+.b-warn-d{background:rgba(228,87,46,.1);color:#993C1D}
+.b-info{background:rgba(108,123,255,.13);color:#AFB6FF}
+
+.code{font:600 25px/1 ui-monospace,Menlo,monospace;letter-spacing:.18em}
+.dot{width:6px;height:6px;border-radius:50%;background:var(--dawn-accent);flex:0 0 auto}
+
+.sheet{position:absolute;left:0;right:0;bottom:0;background:var(--dawn-surface);border-radius:20px 20px 0 0;padding:18px;border-top:1px solid var(--dawn-border)}
+.sheet.n{background:var(--night-surface);border-color:var(--night-border)}
+.scrim{position:absolute;inset:0;background:rgba(11,17,32,.55)}
+
+.spec{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:22px 24px}
+.swrap{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:26px}
+.sw{display:flex;align-items:center;gap:10px;padding:5px 0;font-size:12px}
+.chip{width:26px;height:26px;border-radius:6px;border:1px solid rgba(0,0,0,.14);flex:0 0 auto}
+.mono{font:400 11.5px/1.5 ui-monospace,Menlo,monospace;color:var(--ink2)}
+table{border-collapse:collapse;width:100%;font-size:12.5px}
+td,th{text-align:left;padding:7px 12px 7px 0;border-bottom:1px solid var(--line);vertical-align:top}
+th{font-weight:600;font-size:11px;letter-spacing:.04em;text-transform:uppercase;color:var(--ink2)}
+ul{padding-left:17px}li{margin:5px 0;font-size:13.5px}
+.pill{display:inline-block;font-size:10.5px;padding:3px 8px;border-radius:20px;background:rgba(0,0,0,.055);color:var(--ink2);margin-left:2px}
+@media(max-width:900px){.arrow{display:none}.row{gap:26px}}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<header>
+<h1>mornify</h1>
+<p class="sub">UI/UX canvas — 24 screens, 6 flows, edge cases included.</p>
+<p class="meta">v1 · 7 Sept 2026 · Nathan, Rafel, Bryan, Nuha · Shipaton 2026<br>
+All icons are marked <span class="ph">icon: name</span> — replace with team assets. Nothing here uses a stock icon set.</p>
+</header>
+
+<section>
+<div class="shead"><span class="snum">01</span><h2>First run</h2></div>
+<p class="sdesc">Five screens, no account. Anonymous auth means no email, no password, no verification email. A user can be logging their first night 40 seconds after install. Group join is skippable — the app must work alone on day one.</p>
+<div class="row">
+
+<div class="slot">
+<div class="cap">Welcome</div><div class="capid">01-welcome</div>
+<div class="phone night"><div class="sb"><span>23:41</span><span class="ph">icon: status</span></div>
+<div class="body center">
+<div class="ph xl">logo mark</div>
+<div style="height:22px"></div>
+<div class="h-l">mornify</div>
+<p class="p" style="margin-top:9px;max-width:190px">Sleep consistency, but with your people watching.</p>
+<div class="grow"></div>
+<div class="btn btn-n">Get started</div>
+<div class="link">I have an invite code</div>
+</div></div>
+<p class="note">Wordmark lowercase, single weight. No tagline animation — it delays a screen nobody reads twice.</p>
+</div>
+
+<div class="arrow"><div class="ln">→</div><div class="tx">Get started</div></div>
+
+<div class="slot">
+<div class="cap">Name</div><div class="capid">02-name</div>
+<div class="phone night"><div class="sb"><span>23:41</span><span class="ph">icon: status</span></div>
+<div class="body">
+<div class="kicker">Step 1 of 3</div>
+<div class="h-l" style="margin-top:14px">What should we<br>call you?</div>
+<div style="height:26px"></div>
+<div class="field"><span class="plc">Your name</span></div>
+<p class="p-s" style="margin-top:11px">No email, no password. This is just what your group sees.</p>
+<div class="grow"></div>
+<div class="btn btn-n">Continue</div>
+</div></div>
+<p class="note">Keyboard opens automatically. Continue stays disabled until 2+ characters — but visible, never greyed into invisibility.</p>
+</div>
+
+<div class="arrow"><div class="ln">→</div><div class="tx">Continue</div></div>
+
+<div class="slot">
+<div class="cap">Usual bedtime</div><div class="capid">03-bedtime</div>
+<div class="phone night"><div class="sb"><span>23:42</span><span class="ph">icon: status</span></div>
+<div class="body">
+<div class="kicker">Step 2 of 3</div>
+<div class="h-l" style="margin-top:14px">When do you<br>usually sleep?</div>
+<div class="grow center" style="display:flex">
+<div style="display:flex;align-items:center;gap:16px">
+<span class="ph">icon: minus</span>
+<span class="time-xl">23:30</span>
+<span class="ph">icon: plus</span>
+</div>
+<p class="p-s" style="margin-top:16px">We'll nudge you 15 minutes before.</p>
+</div>
+<div class="btn btn-n">Continue</div>
+</div></div>
+<p class="note">15-minute steps. Long-press to repeat. This value seeds the consistency baseline — it is not a goal or a target.</p>
+</div>
+
+<div class="arrow"><div class="ln">→</div><div class="tx">Continue</div></div>
+
+<div class="slot">
+<div class="cap">Group</div><div class="capid">04-group-setup</div>
+<div class="phone night"><div class="sb"><span>23:42</span><span class="ph">icon: status</span></div>
+<div class="body">
+<div class="kicker">Step 3 of 3</div>
+<div class="h-l" style="margin-top:14px">Sleep with<br>your people</div>
+<p class="p" style="margin-top:11px">Your bedtime gets compared with a small group. Classmates, housemates, whoever.</p>
+<div class="grow"></div>
+<div class="btn btn-n" style="margin-bottom:10px">Create a group</div>
+<div class="btn btn-ghost-n">Join with a code</div>
+<div class="link">Skip for now</div>
+</div></div>
+<p class="note">Skip is deliberately visible. A forced group wall at install is where solo users churn — they can join from Settings any time.</p>
+</div>
+
+<div class="arrow"><div class="ln">→</div><div class="tx">either path</div></div>
+
+<div class="slot">
+<div class="cap">Permission</div><div class="capid">05-permission</div>
+<div class="phone night"><div class="sb"><span>23:43</span><span class="ph">icon: status</span></div>
+<div class="body">
+<div class="ph lg">icon: bell</div>
+<div class="h-m" style="margin-top:18px">We need to wake you</div>
+<p class="p" style="margin-top:10px">Mornify sets one alarm and one bedtime nudge. Nothing else.</p>
+<div class="card-n" style="margin-top:16px">
+<p class="p-s" style="opacity:.85">On Xiaomi, Oppo and Vivo, also allow <b style="font-weight:500">Autostart</b> or the alarm may not fire.</p>
+</div>
+<div class="grow"></div>
+<div class="btn btn-n">Allow notifications</div>
+<div class="link">Not now</div>
+</div></div>
+<p class="note">OEM warning shown pre-emptively, not after a failure. See risk #1 — this copy is only final once alarms are tested on a real Xiaomi.</p>
+</div>
+
+</div>
+</section>
+
+<section>
+<div class="shead"><span class="snum">02</span><h2>The night</h2></div>
+<p class="sdesc">Dark, warm, low contrast — this is looked at in a dark room by someone about to sleep. One action per screen. No charts, no scores, no dashboard.</p>
+<div class="row">
+
+<div class="slot">
+<div class="cap">Home — night</div><div class="capid">10-home-night</div>
+<div class="phone night"><div class="sb"><span>23:38</span><span class="ph">icon: status</span></div>
+<div class="body">
+<div style="display:flex;justify-content:space-between;align-items:center">
+<div class="streak"><span class="ph">icon: flame</span><b>12</b><span class="p-s">nights</span></div>
+<span class="ph">icon: settings</span>
+</div>
+<div class="grow center" style="display:flex">
+<p class="p-s">Your usual bedtime</p>
+<div class="time-l" style="margin-top:5px">23:30</div>
+<p class="p-s" style="margin-top:4px;color:var(--night-accent)">8 minutes late</p>
+<div style="height:30px"></div>
+<div class="ph xl" style="border-radius:50%;height:112px;min-width:112px">icon: moon</div>
+<div style="height:24px"></div>
+<div class="btn btn-n" style="width:190px">Going to sleep</div>
+</div>
+</div>
+<div class="nav"><div class="on"><span class="ph">icon: home</span>Tonight</div><div><span class="ph">icon: group</span>Group</div><div><span class="ph">icon: chart</span>History</div></div>
+</div>
+<p class="note">"8 minutes late" is neutral information, never red, never a warning. Rule #1: no judgement, no health language.</p>
+</div>
+
+<div class="arrow"><div class="ln">→</div><div class="tx">Going to sleep</div></div>
+
+<div class="slot">
+<div class="cap">Alarm sheet</div><div class="capid">11-alarm-set</div>
+<div class="phone night"><div class="sb"><span>23:41</span><span class="ph">icon: status</span></div>
+<div class="body pad0" style="position:relative">
+<div class="scrim"></div>
+<div class="sheet n">
+<div class="h-m">Wake me at</div>
+<div style="display:flex;align-items:center;justify-content:center;gap:16px;margin:22px 0">
+<span class="ph">icon: minus</span><span class="time-xl">06:15</span><span class="ph">icon: plus</span>
+</div>
+<div class="btn btn-n">Start the night</div>
+<div class="link">Skip the alarm</div>
+</div>
+</div></div>
+<p class="note">Sleep timestamp is written the moment this sheet opens, not when it's confirmed. If they abandon here, the night is still logged.</p>
+</div>
+
+<div class="arrow"><div class="ln">→</div><div class="tx">Start the night</div></div>
+
+<div class="slot">
+<div class="cap">Sleeping</div><div class="capid">12-sleeping</div>
+<div class="phone night" style="background:#070C16"><div class="sb"><span>23:43</span><span class="ph">icon: status</span></div>
+<div class="body center">
+<div class="grow center" style="display:flex">
+<p class="p-s" style="opacity:.42">Sleeping since</p>
+<div class="time-l" style="margin-top:7px;opacity:.72">23:42</div>
+<div style="height:34px"></div>
+<div class="ph lg" style="opacity:.22">icon: alarm</div>
+<p class="p-s" style="margin-top:11px;opacity:.42">Alarm at 06:15</p>
+</div>
+<p class="p-s" style="opacity:.3;max-width:180px">You can lock your phone. Nothing is recorded.</p>
+<div class="link" style="opacity:.42">Cancel tonight</div>
+</div></div>
+<p class="note">Darkest screen in the app (#070C16, below night-bg). "Nothing is recorded" is the honest privacy line — we have no sensors, so we say so.</p>
+</div>
+
+</div>
+</section>
+
+<section>
+<div class="shead"><span class="snum">03</span><h2>The morning</h2><span class="pill">the product</span></div>
+<p class="sdesc">This is what we actually sell, and the 15 seconds the demo video shows. Alarm rings, one tap, the card lands. Read in one second by someone half awake — one number, one comparison, one streak.</p>
+<div class="row">
+
+<div class="slot">
+<div class="cap">Alarm ringing</div><div class="capid">20-alarm</div>
+<div class="phone dawn"><div class="sb"><span>06:15</span><span class="ph">icon: status</span></div>
+<div class="body center">
+<div class="grow center" style="display:flex">
+<p class="p-s">Monday, 15 September</p>
+<div class="time-xl" style="margin-top:9px">06:15</div>
+<div style="height:26px"></div>
+<div class="ph xl" style="border-radius:50%;height:104px;min-width:104px">icon: sun</div>
+</div>
+<div class="btn btn-d">I'm up</div>
+<div class="link">Snooze 9 min</div>
+</div></div>
+<p class="note">Full-screen intent on Android. Dawn palette starts here — the app changes character at the exact moment the day does.</p>
+</div>
+
+<div class="arrow"><div class="ln">→</div><div class="tx">I'm up<br>(wake timestamp)</div></div>
+
+<div class="slot">
+<div class="cap">Morning card</div><div class="capid">21-morning-card</div>
+<div class="phone dawn"><div class="sb"><span>06:15</span><span class="ph">icon: status</span></div>
+<div class="body">
+<p class="kicker">Monday</p>
+<div style="display:flex;align-items:baseline;gap:9px;margin-top:12px">
+<span class="time-l">23:42</span><span class="ph">icon: arrow</span><span class="time-l">06:15</span>
+</div>
+<p class="p-s" style="margin-top:7px">12 minutes later than yesterday</p>
+<div class="card-d" style="margin-top:16px">
+<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:9px">
+<span class="p-s" style="opacity:.8">TPB 3A</span><span class="p-s" style="opacity:.55">8 people</span>
+</div>
+<div class="mrow"><span class="rank">1</span><span class="av">RF</span><span class="mname">Rafel</span><span class="mtime">23:05</span></div>
+<div class="mrow you"><span class="rank">2</span><span class="av">NT</span><span class="mname">You</span><span class="mtime">23:42</span></div>
+<div class="mrow"><span class="rank">3</span><span class="av">NH</span><span class="mname">Nuha</span><span class="mtime">00:17</span></div>
+</div>
+<div class="grow"></div>
+<div class="card-d" style="display:flex;align-items:center;gap:11px;margin-bottom:11px">
+<span class="ph">icon: flame</span>
+<div><div style="font-size:16px;font-weight:600;color:var(--flame)">13 nights</div><div class="p-s">consistent</div></div>
+</div>
+<div style="display:flex;gap:9px">
+<div class="btn btn-ghost-d" style="flex:1">Share</div>
+<div class="btn btn-d" style="flex:1">Done</div>
+</div>
+</div></div>
+<p class="note">Never shows duration — only the two clock times. Rule #3: we log what was reported, we don't claim how long anyone slept.</p>
+</div>
+
+<div class="arrow"><div class="ln">→</div><div class="tx">Share</div></div>
+
+<div class="slot">
+<div class="cap">Share card</div><div class="capid">22-share-card</div>
+<div class="phone dawn"><div class="sb"><span>06:16</span><span class="ph">icon: status</span></div>
+<div class="body">
+<p class="p-s" style="text-align:center;margin-bottom:12px">Preview · 4:5</p>
+<div style="background:var(--dawn-surface);border:1px solid var(--dawn-border);border-radius:16px;padding:20px;aspect-ratio:4/5;display:flex;flex-direction:column">
+<div class="p-s">Mon 15 Sep</div>
+<div style="height:12px"></div>
+<div class="time-l">23:42</div>
+<div class="p-s" style="margin-top:2px">to 06:15</div>
+<div class="grow"></div>
+<div style="font-size:15px;font-weight:600">2nd of 8</div>
+<div class="p-s">TPB 3A · 13 nights</div>
+<div style="display:flex;align-items:center;gap:6px;margin-top:14px"><span class="ph">icon: logo</span><span class="p-s" style="opacity:.5">mornify</span></div>
+</div>
+<div class="grow"></div>
+<div class="btn btn-d">Share</div>
+</div></div>
+<p class="note">4:5 fits IG story and WhatsApp status without crop. Rank is the hook — the number a classmate will argue about.</p>
+</div>
+
+<div class="arrow"><div class="ln">→</div><div class="tx">Done</div></div>
+
+<div class="slot">
+<div class="cap">Home — morning</div><div class="capid">23-home-dawn</div>
+<div class="phone dawn"><div class="sb"><span>06:18</span><span class="ph">icon: status</span></div>
+<div class="body">
+<div style="display:flex;justify-content:space-between;align-items:center">
+<div class="streak"><span class="ph">icon: flame</span><b>13</b><span class="p-s">nights</span></div>
+<span class="ph">icon: settings</span>
+</div>
+<div style="height:22px"></div>
+<div class="h-m">Morning, Nathan</div>
+<p class="p" style="margin-top:6px">Logged. Next nudge at 23:15.</p>
+<div class="card-d" style="margin-top:18px">
+<p class="p-s" style="margin-bottom:9px">Last night · TPB 3A</p>
+<div style="display:flex;align-items:baseline;gap:7px"><span class="time-m">23:42</span><span class="p-s">→</span><span class="time-m">06:15</span></div>
+<div style="display:flex;align-items:center;gap:6px;margin-top:9px"><span class="dot"></span><span class="p-s">2nd of 8</span></div>
+</div>
+<div class="grow"></div>
+<div class="btn btn-ghost-d">See the group</div>
+</div>
+<div class="nav d"><div class="on"><span class="ph">icon: home</span>Tonight</div><div><span class="ph">icon: group</span>Group</div><div><span class="ph">icon: chart</span>History</div></div>
+</div>
+<p class="note">Same route as 10-home-night, palette swaps on time of day. Two themes, one screen — not two screens to maintain.</p>
+</div>
+
+</div>
+</section>
+
+<section>
+<div class="shead"><span class="snum">04</span><h2>Group</h2></div>
+<p class="sdesc">The only thing the backend does. Invite code, membership, and a list. No feed, no comments, no global leaderboard — those are moderation problems we cannot own in three weeks.</p>
+<div class="row">
+
+<div class="slot">
+<div class="cap">Group — empty</div><div class="capid">30-group-empty</div>
+<div class="phone dawn"><div class="sb"><span>06:19</span><span class="ph">icon: status</span></div>
+<div class="body">
+<div class="h-m">TPB 3A</div>
+<div class="grow center" style="display:flex">
+<div class="ph lg">icon: invite</div>
+<p class="p" style="margin-top:16px;max-width:190px">It's just you so far. The comparison starts at two.</p>
+<div style="height:22px"></div>
+<div class="card-d" style="width:100%;text-align:center">
+<p class="p-s" style="margin-bottom:7px">Invite code</p>
+<div class="code">K7XM2P</div>
+</div>
+</div>
+<div class="btn btn-d">Share invite</div>
+</div>
+<div class="nav d"><div><span class="ph">icon: home</span>Tonight</div><div class="on"><span class="ph">icon: group</span>Group</div><div><span class="ph">icon: chart</span>History</div></div>
+</div>
+<p class="note">Empty state does the growth work — the invite code is the largest element on screen. This is where user two comes from.</p>
+</div>
+
+<div class="arrow"><div class="ln">→</div><div class="tx">others join</div></div>
+
+<div class="slot">
+<div class="cap">Group — active</div><div class="capid">31-group</div>
+<div class="phone dawn"><div class="sb"><span>06:19</span><span class="ph">icon: status</span></div>
+<div class="body">
+<div style="display:flex;justify-content:space-between;align-items:center">
+<div><div class="h-m">TPB 3A</div><p class="p-s">8 people · K7XM2P</p></div>
+<span class="ph">icon: share</span>
+</div>
+<p class="kicker" style="margin-top:20px">Last night</p>
+<div style="margin-top:5px">
+<div class="mrow"><span class="rank">1</span><span class="av">RF</span><span class="mname">Rafel</span><span class="mtime">23:05</span></div>
+<div class="mrow you"><span class="rank">2</span><span class="av">NT</span><span class="mname">You</span><span class="mtime">23:42</span></div>
+<div class="mrow"><span class="rank">3</span><span class="av">NH</span><span class="mname">Nuha</span><span class="mtime">00:17</span></div>
+<div class="mrow"><span class="rank">4</span><span class="av">BR</span><span class="mname">Bryan</span><span class="mtime">00:48</span></div>
+<div class="mrow"><span class="rank">5</span><span class="av">DA</span><span class="mname">Dara</span><span class="mtime">01:12</span></div>
+<div class="mrow" style="opacity:.42"><span class="rank">—</span><span class="av">IQ</span><span class="mname">Iqbal</span><span class="mtime">no log</span></div>
+</div>
+</div>
+<div class="nav d"><div><span class="ph">icon: home</span>Tonight</div><div class="on"><span class="ph">icon: group</span>Group</div><div><span class="ph">icon: chart</span>History</div></div>
+</div>
+<p class="note">"no log" is greyed, never shamed. Sorted by bedtime, earliest first. Nobody is called a loser — social pressure comes from visibility alone.</p>
+</div>
+
+<div class="arrow"><div class="ln">→</div><div class="tx">Create a group<br>(from 04)</div></div>
+
+<div class="slot">
+<div class="cap">Create group</div><div class="capid">32-create</div>
+<div class="phone night"><div class="sb"><span>23:44</span><span class="ph">icon: status</span></div>
+<div class="body">
+<span class="ph">icon: back</span>
+<div class="h-l" style="margin-top:16px">Name your<br>group</div>
+<div style="height:24px"></div>
+<div class="field"><span class="plc">TPB 3A</span></div>
+<p class="p-s" style="margin-top:11px">Keep it recognisable. People join by code, not by search.</p>
+<div class="grow"></div>
+<div class="btn btn-n">Create</div>
+</div></div>
+<p class="note">No group discovery, no public directory. Code-only entry keeps the group closed and removes an entire moderation surface.</p>
+</div>
+
+<div class="arrow"><div class="ln">→</div><div class="tx">Join with a code</div></div>
+
+<div class="slot">
+<div class="cap">Join group</div><div class="capid">33-join</div>
+<div class="phone night"><div class="sb"><span>23:44</span><span class="ph">icon: status</span></div>
+<div class="body">
+<span class="ph">icon: back</span>
+<div class="h-l" style="margin-top:16px">Enter the<br>code</div>
+<div style="height:28px"></div>
+<div style="display:flex;gap:7px">
+<div style="flex:1;height:48px;border:1px solid var(--night-border);border-radius:9px;display:flex;align-items:center;justify-content:center;font:600 19px ui-monospace,Menlo,monospace">K</div>
+<div style="flex:1;height:48px;border:1px solid var(--night-border);border-radius:9px;display:flex;align-items:center;justify-content:center;font:600 19px ui-monospace,Menlo,monospace">7</div>
+<div style="flex:1;height:48px;border:1px solid var(--night-accent);border-radius:9px"></div>
+<div style="flex:1;height:48px;border:1px solid var(--night-border);border-radius:9px"></div>
+<div style="flex:1;height:48px;border:1px solid var(--night-border);border-radius:9px"></div>
+<div style="flex:1;height:48px;border:1px solid var(--night-border);border-radius:9px"></div>
+</div>
+<p class="p-s" style="margin-top:12px">Ask whoever made the group.</p>
+<div class="grow"></div>
+<div class="btn btn-n">Join</div>
+</div></div>
+<p class="note">Six characters, no ambiguous glyphs — exclude 0, O, I, 1 from generation. Auto-advance per box, paste fills all six.</p>
+</div>
+
+</div>
+</section>
+
+<section>
+<div class="shead"><span class="snum">05</span><h2>Streak freeze</h2><span class="pill">RevenueCat</span></div>
+<p class="sdesc">The only thing sold. It appears at the moment the streak is genuinely at risk — never on a schedule, never at install. If the user never risks a streak, they never see a paywall.</p>
+<div class="row">
+
+<div class="slot">
+<div class="cap">Freeze offer</div><div class="capid">40-paywall</div>
+<div class="phone night"><div class="sb"><span>01:52</span><span class="ph">icon: status</span></div>
+<div class="body pad0" style="position:relative">
+<div class="scrim"></div>
+<div class="sheet n">
+<div style="text-align:center">
+<div class="ph lg">icon: freeze</div>
+<div class="h-m" style="margin-top:14px">Your 13 nights end<br>in 8 minutes</div>
+<p class="p" style="margin-top:9px">A freeze keeps the streak alive for one night. Use it and go to sleep.</p>
+</div>
+<div class="card-n" style="margin-top:18px;display:flex;justify-content:space-between;align-items:center">
+<div><div style="font-size:13.5px;font-weight:500">1 streak freeze</div><div class="p-s">One night</div></div>
+<div style="font-size:15px;font-weight:600">Rp 9.000</div>
+</div>
+<div class="btn btn-n" style="margin-top:12px">Use a freeze</div>
+<div class="link">Not tonight</div>
+</div>
+</div></div>
+<p class="note">Peak-emotion trigger. Copy tells them to go to sleep, not to browse — an app about sleep that keeps you up to sell you something has lost the plot.</p>
+</div>
+
+<div class="arrow"><div class="ln">→</div><div class="tx">Use a freeze</div></div>
+
+<div class="slot">
+<div class="cap">Freeze used</div><div class="capid">41-freeze-ok</div>
+<div class="phone night"><div class="sb"><span>01:53</span><span class="ph">icon: status</span></div>
+<div class="body center">
+<div class="grow center" style="display:flex">
+<div class="ph xl" style="border-radius:50%;height:96px;min-width:96px">icon: check</div>
+<div class="h-m" style="margin-top:22px">Streak saved</div>
+<div class="streak" style="margin-top:12px"><span class="ph">icon: flame</span><b>13</b><span class="p-s">nights</span></div>
+<p class="p" style="margin-top:14px;max-width:190px">Tonight doesn't count against you. Sleep well.</p>
+</div>
+<div class="btn btn-n">Going to sleep</div>
+</div></div>
+<p class="note">Purchase confirmation routes straight back into the core loop — no receipt screen, no upsell to a bundle.</p>
+</div>
+
+<div class="arrow"><div class="ln">→</div><div class="tx">Settings ›<br>Freezes</div></div>
+
+<div class="slot">
+<div class="cap">Freeze balance</div><div class="capid">42-freezes</div>
+<div class="phone dawn"><div class="sb"><span>09:04</span><span class="ph">icon: status</span></div>
+<div class="body">
+<span class="ph">icon: back</span>
+<div class="h-m" style="margin-top:16px">Streak freezes</div>
+<div class="card-d" style="margin-top:16px;text-align:center">
+<div style="font-size:32px;font-weight:300">2</div>
+<p class="p-s">left</p>
+</div>
+<p class="kicker" style="margin-top:22px">Get more</p>
+<div class="card-d" style="margin-top:9px;display:flex;justify-content:space-between;align-items:center">
+<div><div style="font-size:13px;font-weight:500">5 freezes</div><div class="p-s">Rp 35.000</div></div>
+<span class="ph">icon: chevron</span>
+</div>
+<div class="card-d" style="margin-top:9px;display:flex;justify-content:space-between;align-items:center">
+<div><div style="font-size:13px;font-weight:500">Unlimited</div><div class="p-s">Rp 25.000 / month</div></div>
+<span class="ph">icon: chevron</span>
+</div>
+<div class="grow"></div>
+<div class="link">Restore purchases</div>
+</div></div>
+<p class="note">Restore purchases is mandatory for store review. Subscription sits below consumables — it is the smaller bet, not the headline.</p>
+</div>
+
+</div>
+</section>
+
+<section>
+<div class="shead"><span class="snum">06</span><h2>Edge cases</h2><span class="pill">where it usually breaks</span></div>
+<p class="sdesc">These decide whether the app survives contact with 15 real testers. Every one of them will happen in week one.</p>
+<div class="row">
+
+<div class="slot">
+<div class="cap">Forgot to tap</div><div class="capid">50-morning-fix</div>
+<div class="phone dawn"><div class="sb"><span>07:22</span><span class="ph">icon: status</span></div>
+<div class="body">
+<p class="kicker">Tuesday</p>
+<div class="h-m" style="margin-top:12px">We missed<br>last night</div>
+<p class="p" style="margin-top:9px">Roughly what time did you go to sleep?</p>
+<div style="margin-top:18px">
+<div class="card-d" style="margin-bottom:9px">Before 23:00</div>
+<div class="card-d" style="margin-bottom:9px">23:00 – 00:00</div>
+<div class="card-d" style="margin-bottom:9px">After 00:00</div>
+</div>
+<div class="link">Enter exact time</div>
+<div class="grow"></div>
+<div class="link">Skip — I didn't sleep here</div>
+</div></div>
+<p class="note">This is what keeps the data alive. Three buckets, one tap. Logged with <span class="mono">source: morning_fix</span> so we can tell recalled entries from live ones.</p>
+</div>
+
+<div class="arrow"><div class="ln">→</div><div class="tx">skipped<br>a night</div></div>
+
+<div class="slot">
+<div class="cap">Streak broken</div><div class="capid">51-streak-reset</div>
+<div class="phone dawn"><div class="sb"><span>07:24</span><span class="ph">icon: status</span></div>
+<div class="body">
+<div class="grow center" style="display:flex">
+<div class="ph lg" style="opacity:.3">icon: flame off</div>
+<div class="h-m" style="margin-top:18px">Back to 1</div>
+<p class="p" style="margin-top:11px;max-width:200px">Your 13 nights ended on Monday. It happens — the longest anyone in TPB 3A has run is 19.</p>
+</div>
+<div class="card-d" style="margin-bottom:12px;display:flex;justify-content:space-between;align-items:center">
+<span class="p-s">Longest run</span><span style="font-size:14px;font-weight:600">13 nights</span>
+</div>
+<div class="btn btn-d">Start again tonight</div>
+</div></div>
+<p class="note">Never guilt. The longest run is preserved and shown — losing a streak must not delete the evidence you were ever consistent.</p>
+</div>
+
+<div class="arrow"><div class="ln">→</div><div class="tx">no network</div></div>
+
+<div class="slot">
+<div class="cap">Offline</div><div class="capid">52-offline</div>
+<div class="phone dawn"><div class="sb"><span>06:17</span><span class="ph">icon: status</span></div>
+<div class="body">
+<div class="banner b-warn-d" style="margin-bottom:14px"><span class="ph">icon: offline</span> Saved on your phone. Your group sees it when you're back online.</div>
+<p class="kicker">Monday</p>
+<div style="display:flex;align-items:baseline;gap:9px;margin-top:11px">
+<span class="time-l">23:42</span><span class="ph">icon: arrow</span><span class="time-l">06:15</span>
+</div>
+<div class="card-d" style="margin-top:16px;opacity:.5">
+<p class="p-s" style="margin-bottom:9px">TPB 3A</p>
+<div class="mrow" style="opacity:.6"><span class="rank">—</span><span class="av">··</span><span class="mname">Waiting for sync</span></div>
+</div>
+<div class="grow"></div>
+<div class="card-d" style="display:flex;align-items:center;gap:11px">
+<span class="ph">icon: flame</span>
+<div><div style="font-size:16px;font-weight:600;color:var(--flame)">13 nights</div><div class="p-s">counted locally</div></div>
+</div>
+</div></div>
+<p class="note">Streak is computed on device and never blocks. Only the group panel degrades. Rule #5 — if Supabase dies, the app still works and the demo still runs.</p>
+</div>
+
+<div class="arrow"><div class="ln">→</div><div class="tx">OEM killed<br>the alarm</div></div>
+
+<div class="slot">
+<div class="cap">Alarm blocked</div><div class="capid">53-alarm-risk</div>
+<div class="phone night"><div class="sb"><span>23:40</span><span class="ph">icon: status</span></div>
+<div class="body">
+<div class="banner b-warn" style="margin-bottom:16px"><span class="ph">icon: warning</span> Your alarm probably won't fire</div>
+<p class="p">Android stopped Mornify in the background last night. On this phone you need to allow it to run.</p>
+<div class="card-n" style="margin-top:16px">
+<p class="p-s" style="line-height:1.75">Settings › Apps › Mornify<br>› Battery › Unrestricted<br>› Autostart › On</p>
+</div>
+<div class="grow"></div>
+<div class="btn btn-n" style="margin-bottom:10px">Open settings</div>
+<div class="btn btn-ghost-n">Use a reminder instead</div>
+</div></div>
+<p class="note">Detected by a missed-alarm heuristic, not shown to everyone. The fallback button is the honest exit — see risk #1 in the action plan.</p>
+</div>
+
+</div>
+
+<div class="row" style="margin-top:44px">
+
+<div class="slot">
+<div class="cap">History</div><div class="capid">60-history</div>
+<div class="phone dawn"><div class="sb"><span>09:02</span><span class="ph">icon: status</span></div>
+<div class="body">
+<div class="h-m">History</div>
+<p class="p-s" style="margin-top:4px">September</p>
+<div style="margin-top:16px">
+<div class="mrow"><span class="mname" style="flex:0 0 46px;opacity:.55">Mon 15</span><span class="mtime" style="flex:1">23:42 → 06:15</span><span class="dot"></span></div>
+<div class="mrow"><span class="mname" style="flex:0 0 46px;opacity:.55">Sun 14</span><span class="mtime" style="flex:1">23:30 → 06:20</span><span class="dot"></span></div>
+<div class="mrow"><span class="mname" style="flex:0 0 46px;opacity:.55">Sat 13</span><span class="mtime" style="flex:1">01:05 → 09:40</span><span class="dot" style="background:var(--dawn-border)"></span></div>
+<div class="mrow"><span class="mname" style="flex:0 0 46px;opacity:.55">Fri 12</span><span class="mtime" style="flex:1">23:51 → 06:14</span><span class="dot"></span></div>
+<div class="mrow" style="opacity:.42"><span class="mname" style="flex:0 0 46px">Thu 11</span><span class="mtime" style="flex:1">frozen</span><span class="ph">icon: freeze</span></div>
+<div class="mrow"><span class="mname" style="flex:0 0 46px;opacity:.55">Wed 10</span><span class="mtime" style="flex:1">23:22 → 06:11</span><span class="dot"></span></div>
+</div>
+</div>
+<div class="nav d"><div><span class="ph">icon: home</span>Tonight</div><div><span class="ph">icon: group</span>Group</div><div class="on"><span class="ph">icon: chart</span>History</div></div>
+</div>
+<p class="note">A list, not a graph. Charts imply measurement we don't do. Dot = counted toward consistency, hollow = outside the window.</p>
+</div>
+
+<div class="arrow"><div class="ln">→</div><div class="tx">first open</div></div>
+
+<div class="slot">
+<div class="cap">History — empty</div><div class="capid">61-history-empty</div>
+<div class="phone dawn"><div class="sb"><span>09:02</span><span class="ph">icon: status</span></div>
+<div class="body">
+<div class="h-m">History</div>
+<div class="grow center" style="display:flex">
+<div class="ph lg" style="opacity:.4">icon: calendar</div>
+<p class="p" style="margin-top:16px;max-width:180px">Your first night shows up here tomorrow morning.</p>
+</div>
+</div>
+<div class="nav d"><div><span class="ph">icon: home</span>Tonight</div><div><span class="ph">icon: group</span>Group</div><div class="on"><span class="ph">icon: chart</span>History</div></div>
+</div>
+<p class="note">Empty states are invitations, not apologies. No "no data yet".</p>
+</div>
+
+<div class="arrow"><div class="ln">→</div><div class="tx">settings icon<br>(from home)</div></div>
+
+<div class="slot">
+<div class="cap">Settings</div><div class="capid">70-settings</div>
+<div class="phone dawn"><div class="sb"><span>09:03</span><span class="ph">icon: status</span></div>
+<div class="body">
+<span class="ph">icon: back</span>
+<div class="h-m" style="margin-top:16px">Settings</div>
+<div style="margin-top:18px">
+<div class="mrow"><span class="mname">Name</span><span class="mtime">Nathan</span><span class="ph">icon: chevron</span></div>
+<div class="mrow"><span class="mname">Usual bedtime</span><span class="mtime">23:30</span><span class="ph">icon: chevron</span></div>
+<div class="mrow"><span class="mname">Bedtime nudge</span><span class="mtime">On</span><span class="ph">icon: chevron</span></div>
+<div class="mrow"><span class="mname">Group</span><span class="mtime">TPB 3A</span><span class="ph">icon: chevron</span></div>
+<div class="mrow"><span class="mname">Streak freezes</span><span class="mtime">2</span><span class="ph">icon: chevron</span></div>
+<div class="mrow"><span class="mname">Restore purchases</span><span class="ph">icon: chevron</span></div>
+<div class="mrow"><span class="mname">Privacy policy</span><span class="ph">icon: external</span></div>
+</div>
+<div class="grow"></div>
+<p class="p-s" style="text-align:center;opacity:.45">Mornify 1.0 · Bandung</p>
+</div></div>
+<p class="note">No account section, because there is no account. "Bandung" in the footer is deliberate — it's the origin, and judges read footers.</p>
+</div>
+
+<div class="arrow"><div class="ln">→</div><div class="tx">Group ›<br>Leave</div></div>
+
+<div class="slot">
+<div class="cap">Leave group</div><div class="capid">71-leave</div>
+<div class="phone dawn"><div class="sb"><span>09:03</span><span class="ph">icon: status</span></div>
+<div class="body pad0" style="position:relative">
+<div class="scrim"></div>
+<div class="sheet">
+<div class="h-m">Leave TPB 3A?</div>
+<p class="p" style="margin-top:9px">Your nights stay on your phone. You'll stop seeing the group and they'll stop seeing you.</p>
+<div class="btn btn-ghost-d" style="margin-top:18px;border-color:var(--flame);color:var(--flame)">Leave group</div>
+<div class="link">Cancel</div>
+</div>
+</div></div>
+<p class="note">Destructive action is outlined, not filled — filled red reads as the default and gets mis-tapped at 6am.</p>
+</div>
+
+</div>
+</section>
+
+<section>
+<div class="shead"><span class="snum">07</span><h2>Specification</h2></div>
+<div class="swrap">
+
+<div class="spec">
+<h3 style="margin-bottom:14px">Night palette</h3>
+<div class="sw"><span class="chip" style="background:#0B1120"></span><span class="mono">#0B1120</span><span style="color:var(--ink2)">background</span></div>
+<div class="sw"><span class="chip" style="background:#151E32"></span><span class="mono">#151E32</span><span style="color:var(--ink2)">card</span></div>
+<div class="sw"><span class="chip" style="background:#253150"></span><span class="mono">#253150</span><span style="color:var(--ink2)">border</span></div>
+<div class="sw"><span class="chip" style="background:#E6E8EF"></span><span class="mono">#E6E8EF</span><span style="color:var(--ink2)">text</span></div>
+<div class="sw"><span class="chip" style="background:#8B94AD"></span><span class="mono">#8B94AD</span><span style="color:var(--ink2)">muted</span></div>
+<div class="sw"><span class="chip" style="background:#6C7BFF"></span><span class="mono">#6C7BFF</span><span style="color:var(--ink2)">accent</span></div>
+<div class="sw"><span class="chip" style="background:#070C16"></span><span class="mono">#070C16</span><span style="color:var(--ink2)">sleeping only</span></div>
+</div>
+
+<div class="spec">
+<h3 style="margin-bottom:14px">Dawn palette</h3>
+<div class="sw"><span class="chip" style="background:#FFF8F0"></span><span class="mono">#FFF8F0</span><span style="color:var(--ink2)">background</span></div>
+<div class="sw"><span class="chip" style="background:#FFFFFF"></span><span class="mono">#FFFFFF</span><span style="color:var(--ink2)">card</span></div>
+<div class="sw"><span class="chip" style="background:#F0E4D4"></span><span class="mono">#F0E4D4</span><span style="color:var(--ink2)">border</span></div>
+<div class="sw"><span class="chip" style="background:#1A1614"></span><span class="mono">#1A1614</span><span style="color:var(--ink2)">text</span></div>
+<div class="sw"><span class="chip" style="background:#7A6E63"></span><span class="mono">#7A6E63</span><span style="color:var(--ink2)">muted</span></div>
+<div class="sw"><span class="chip" style="background:#F59332"></span><span class="mono">#F59332</span><span style="color:var(--ink2)">accent</span></div>
+<div class="sw"><span class="chip" style="background:#E4572E"></span><span class="mono">#E4572E</span><span style="color:var(--ink2)">streak flame</span></div>
+</div>
+
+<div class="spec">
+<h3 style="margin-bottom:14px">Type scale</h3>
+<table>
+<tr><th>Role</th><th>Size</th><th>Weight</th></tr>
+<tr><td>Time hero</td><td>54</td><td>300</td></tr>
+<tr><td>Time large</td><td>34</td><td>300</td></tr>
+<tr><td>Time inline</td><td>19</td><td>400</td></tr>
+<tr><td>Heading</td><td>22 / 17</td><td>600</td></tr>
+<tr><td>Body</td><td>12.5</td><td>400</td></tr>
+<tr><td>Caption</td><td>11</td><td>400</td></tr>
+<tr><td>Kicker</td><td>10.5</td><td>400 · uppercase</td></tr>
+</table>
+<p class="mono" style="margin-top:12px">Two weights only: 300 for numerals, 400/600 for text. All clock numerals tabular-nums so the layout never jitters.</p>
+</div>
+
+<div class="spec">
+<h3 style="margin-bottom:14px">Components</h3>
+<table>
+<tr><th>Element</th><th>Spec</th></tr>
+<tr><td>Button</td><td>46px, radius 23, weight 500</td></tr>
+<tr><td>Card</td><td>radius 14, 1px border, 13/15 pad</td></tr>
+<tr><td>Sheet</td><td>radius 20 top, scrim #0B1120 @55%</td></tr>
+<tr><td>Field</td><td>bottom rule only, 17px value</td></tr>
+<tr><td>Avatar</td><td>26px circle, 2-letter initials</td></tr>
+<tr><td>Nav</td><td>52px, 3 tabs, no labels below 9.5px</td></tr>
+<tr><td>Screen pad</td><td>14 vertical / 18 horizontal</td></tr>
+</table>
+</div>
+
+<div class="spec">
+<h3 style="margin-bottom:14px">Icon slots</h3>
+<p class="mono" style="margin-bottom:10px">Every <span class="ph">icon: name</span> is a placeholder. 22 unique slots:</p>
+<p class="mono" style="line-height:1.9">logo · moon · sun · flame · flame-off · alarm · bell · freeze · check · plus · minus · arrow · chevron · back · share · invite · settings · home · group · chart · calendar · warning · offline · external</p>
+<p class="mono" style="margin-top:12px">Nav icons 22px, inline 16px, hero 76–112px. Single stroke weight across the set.</p>
+</div>
+
+<div class="spec">
+<h3 style="margin-bottom:14px">Rules the design enforces</h3>
+<ul>
+<li>No sleep duration is ever displayed — only the two clock times.</li>
+<li>No score, no quality rating, no health or medical language.</li>
+<li>No line charts. A list, because we do not measure.</li>
+<li>Streak counts consistency, never duration.</li>
+<li>Group is additive — every screen works alone.</li>
+<li>Streak state is local; only the group panel degrades offline.</li>
+<li>Paywall fires on risk, never on a timer or at install.</li>
+</ul>
+</div>
+
+</div>
+</section>
+
+<section>
+<div class="shead"><span class="snum">08</span><h2>Route map</h2></div>
+<div class="spec" style="margin-top:18px">
+<table>
+<tr><th>From</th><th>Action</th><th>To</th></tr>
+<tr><td>01-welcome</td><td>Get started</td><td>02-name</td></tr>
+<tr><td>01-welcome</td><td>I have an invite code</td><td>33-join</td></tr>
+<tr><td>02-name</td><td>Continue</td><td>03-bedtime</td></tr>
+<tr><td>03-bedtime</td><td>Continue</td><td>04-group-setup</td></tr>
+<tr><td>04-group-setup</td><td>Create / Join / Skip</td><td>32-create · 33-join · 05-permission</td></tr>
+<tr><td>05-permission</td><td>Allow / Not now</td><td>10-home-night</td></tr>
+<tr><td>10-home-night</td><td>Going to sleep</td><td>11-alarm-set</td></tr>
+<tr><td>11-alarm-set</td><td>Start the night</td><td>12-sleeping</td></tr>
+<tr><td>12-sleeping</td><td>alarm fires</td><td>20-alarm</td></tr>
+<tr><td>12-sleeping</td><td>Cancel tonight</td><td>10-home-night <span class="mono">(log discarded)</span></td></tr>
+<tr><td>20-alarm</td><td>I'm up</td><td>21-morning-card</td></tr>
+<tr><td>21-morning-card</td><td>Share / Done</td><td>22-share-card · 23-home-dawn</td></tr>
+<tr><td>23-home-dawn</td><td>See the group</td><td>31-group <span class="mono">(or 30 if alone)</span></td></tr>
+<tr><td>30-group-empty</td><td>Share invite</td><td>OS share sheet</td></tr>
+<tr><td>any</td><td>streak at risk, &lt;15 min</td><td>40-paywall</td></tr>
+<tr><td>40-paywall</td><td>Use a freeze</td><td>41-freeze-ok</td></tr>
+<tr><td>app open, night missing</td><td>auto</td><td>50-morning-fix</td></tr>
+<tr><td>50-morning-fix</td><td>Skip</td><td>51-streak-reset</td></tr>
+<tr><td>no network on wake</td><td>auto</td><td>52-offline</td></tr>
+<tr><td>alarm missed once</td><td>auto, next evening</td><td>53-alarm-risk</td></tr>
+<tr><td>53-alarm-risk</td><td>Use a reminder instead</td><td>10-home-night <span class="mono">(degraded mode)</span></td></tr>
+</table>
+</div>
+</section>
+
+<section>
+<div class="shead"><span class="snum">09</span><h2>Not designed, on purpose</h2></div>
+<div class="spec" style="margin-top:18px">
+<ul>
+<li><b>Sleep stage graphs</b> — we have no sensors. Drawing one would be a lie.</li>
+<li><b>Global leaderboard</b> — moderation and anti-cheat we can't own by 22 September.</li>
+<li><b>Feed and comments</b> — a reporting surface we have no capacity to staff.</li>
+<li><b>Profile screens</b> — anonymous auth, nothing to show.</li>
+<li><b>Dark/light toggle</b> — theme follows time of day, not preference. That's the concept.</li>
+<li><b>Weekly recap</b> — cut item #6 in the action plan. Add only if Gate 3 clears early.</li>
+</ul>
+<p class="mono" style="margin-top:14px">If a screen isn't in this file, it isn't in v1. Adding one after 21 September breaks the feature freeze.</p>
+</div>
+</section>
+
+</div>
+</body>
+</html>
