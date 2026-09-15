@@ -2,16 +2,26 @@ import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
 import { useRouter } from 'expo-router';
 import { theme } from '../constants/theme';
 import { useSleepState } from '../hooks/useStore';
+import { useGroup } from '../hooks/useGroup';
 import * as Notifications from 'expo-notifications';
 
 export default function Sleeping() {
   const router = useRouter();
-  const { sleepAt, alarmTime, clearSleepState } = useSleepState();
+  const { sleepAt, alarmTime, clearSleepState, saveWakeAtAndIncrementStreak } = useSleepState();
+  const { syncLog } = useGroup();
 
   const handleCancel = async () => {
     clearSleepState();
     await Notifications.cancelAllScheduledNotificationsAsync();
     router.replace('/10-home-night');
+  };
+
+  const handleWakeUpNow = async () => {
+    const now = Date.now();
+    saveWakeAtAndIncrementStreak(now);
+    syncLog(sleepAt, now);
+    await Notifications.cancelAllScheduledNotificationsAsync();
+    router.replace('/21-morning-card');
   };
 
   const formatTime = (timestamp: number | null) => {
@@ -34,9 +44,15 @@ export default function Sleeping() {
         </View>
       </View>
 
-      <TouchableOpacity style={styles.cancelButton} onPress={handleCancel}>
-        <Text style={styles.cancelText}>Cancel tonight</Text>
-      </TouchableOpacity>
+      <View style={styles.actions}>
+        <TouchableOpacity style={styles.wakeUpButton} onPress={handleWakeUpNow}>
+          <Text style={styles.wakeUpText}>Wake Up Now</Text>
+        </TouchableOpacity>
+
+        <TouchableOpacity style={styles.cancelButton} onPress={handleCancel}>
+          <Text style={styles.cancelText}>Cancel tonight</Text>
+        </TouchableOpacity>
+      </View>
     </View>
   );
 }
@@ -76,6 +92,20 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     color: theme.nightText,
     opacity: 0.42,
+  },
+  actions: {
+    gap: 16,
+  },
+  wakeUpButton: {
+    backgroundColor: theme.nightAccent,
+    paddingVertical: 18,
+    borderRadius: 24,
+    alignItems: 'center',
+  },
+  wakeUpText: {
+    color: '#FFFFFF',
+    fontSize: 18,
+    fontWeight: 'bold',
   },
   cancelButton: {
     padding: 16,

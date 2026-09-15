@@ -49,8 +49,8 @@ export default function AlarmSet() {
     
     await Notifications.scheduleNotificationAsync({
       content: {
-        title: 'Time to wake up!',
-        body: 'Good morning from Mornify.',
+        title: 'Good Morning',
+        body: 'Tap to log your wake up and save your streak!',
         sound: true,
       },
       trigger: {

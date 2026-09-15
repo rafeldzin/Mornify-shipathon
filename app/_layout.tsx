@@ -1,8 +1,19 @@
-import { Stack } from 'expo-router';
+import { Stack, useRouter } from 'expo-router';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { theme } from '../constants/theme';
+import * as Notifications from 'expo-notifications';
+import { useEffect } from 'react';
 
 export default function RootLayout() {
+  const router = useRouter();
+
+  useEffect(() => {
+    const subscription = Notifications.addNotificationResponseReceivedListener(response => {
+      router.push('/20-alarm');
+    });
+    return () => subscription.remove();
+  }, [router]);
+
   return (
     <GestureHandlerRootView style={{ flex: 1, backgroundColor: theme.nightBg }}>
       <Stack
