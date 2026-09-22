@@ -1,122 +1,75 @@
-import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
+import { View } from 'react-native';
 import { useRouter } from 'expo-router';
-import { theme } from '../constants/theme';
-import { useSleepState } from '../hooks/useStore';
-import { useGroup } from '../hooks/useGroup';
-import * as Notifications from 'expo-notifications';
+import { palettes } from '../constants/tokens';
+import { useActiveNight, useNights } from '../hooks/useStore';
+import { Icon } from '../components/Icon';
+import { Caption, Clock, Grow, LinkButton, Screen } from '../components/ui';
+import { cancelAlarm, isReminderMode } from '../lib/alarm';
+import { formatClock } from '../lib/time';
 
+/** The darkest screen in the app, looked at in a dark room by someone about to sleep. */
 export default function Sleeping() {
   const router = useRouter();
-  const { sleepAt, alarmTime, clearSleepState, saveWakeAtAndIncrementStreak } = useSleepState();
-  const { syncLog } = useGroup();
+  const palette = palettes.night;
+  const { active, clear } = useActiveNight();
+  const { discard } = useNights();
+
+  // Not in the original spec, but a real hole: someone who wakes before the
+  // alarm otherwise has no way to close the night.
+  const handleUpEarly = async () => {
+    if (active) await cancelAlarm(active.notificationId);
+    router.replace('/20-alarm');
+  };
 
   const handleCancel = async () => {
-    clearSleepState();
-    await Notifications.cancelAllScheduledNotificationsAsync();
+    if (active) {
+      await cancelAlarm(active.notificationId);
+      discard(active.night);
+    }
+    clear();
     router.replace('/10-home-night');
   };
 
-  const handleWakeUpNow = async () => {
-    const now = Date.now();
-    saveWakeAtAndIncrementStreak(now);
-    syncLog(sleepAt, now);
-    await Notifications.cancelAllScheduledNotificationsAsync();
-    router.replace('/21-morning-card');
-  };
-
-  const formatTime = (timestamp: number | null) => {
-    if (!timestamp) return '--:--';
-    const d = new Date(timestamp);
-    return `${d.getHours().toString().padStart(2, '0')}:${d.getMinutes().toString().padStart(2, '0')}`;
-  };
-
   return (
-    <View style={styles.container}>
-      <View style={styles.content}>
-        <View style={styles.timeBlock}>
-          <Text style={styles.label}>Went to sleep at</Text>
-          <Text style={styles.sleepAtTime}>{formatTime(sleepAt)}</Text>
-        </View>
+    <Screen palette={palette} background={palette.deep} style={{ alignItems: 'center' }}>
+      <Grow />
+      <Caption palette={palette} style={{ opacity: 0.42 }}>
+        Sleeping since
+      </Caption>
+      <Clock
+        value={formatClock(active?.sleepAt ?? null)}
+        palette={palette}
+        size="large"
+        style={{ marginTop: 7, opacity: 0.72 }}
+      />
 
-        <View style={styles.timeBlock}>
-          <Text style={styles.label}>Waking up at</Text>
-          <Text style={styles.alarmTime}>{formatTime(alarmTime)}</Text>
-        </View>
+      <View style={{ height: 34 }} />
+      <View style={{ opacity: 0.22 }}>
+        <Icon name="alarm" size={52} color={palette.text} />
       </View>
+      <Caption palette={palette} style={{ marginTop: 11, opacity: 0.42 }}>
+        {active?.alarmAt
+          ? `${active.reminderOnly || isReminderMode() ? 'Reminder' : 'Alarm'} at ${formatClock(active.alarmAt)}`
+          : 'No alarm set'}
+      </Caption>
 
-      <View style={styles.actions}>
-        <TouchableOpacity style={styles.wakeUpButton} onPress={handleWakeUpNow}>
-          <Text style={styles.wakeUpText}>Wake Up Now</Text>
-        </TouchableOpacity>
-
-        <TouchableOpacity style={styles.cancelButton} onPress={handleCancel}>
-          <Text style={styles.cancelText}>Cancel tonight</Text>
-        </TouchableOpacity>
-      </View>
-    </View>
+      <Grow />
+      {/* Literally true — we have no sensors. This line is the privacy story. */}
+      <Caption palette={palette} style={{ opacity: 0.3, maxWidth: 190, textAlign: 'center' }}>
+        You can lock your phone. Nothing is recorded.
+      </Caption>
+      <LinkButton
+        label="I'm up already"
+        palette={palette}
+        onPress={handleUpEarly}
+        style={{ opacity: 0.42 }}
+      />
+      <LinkButton
+        label="Cancel tonight"
+        palette={palette}
+        onPress={handleCancel}
+        style={{ opacity: 0.42 }}
+      />
+    </Screen>
   );
 }
-
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: theme.sleepingBg,
-    justifyContent: 'space-between',
-    padding: 32,
-    paddingTop: 80,
-    paddingBottom: 48,
-  },
-  content: {
-    flex: 1,
-    justifyContent: 'center',
-    gap: 48,
-  },
-  timeBlock: {
-    alignItems: 'center',
-  },
-  label: {
-    color: theme.nightMuted,
-    fontSize: 16,
-    marginBottom: 8,
-    textTransform: 'uppercase',
-    letterSpacing: 1,
-  },
-  sleepAtTime: {
-    fontSize: 48,
-    fontWeight: 'bold',
-    color: theme.nightText,
-    opacity: 0.72,
-  },
-  alarmTime: {
-    fontSize: 32,
-    fontWeight: '600',
-    color: theme.nightText,
-    opacity: 0.42,
-  },
-  actions: {
-    gap: 16,
-  },
-  wakeUpButton: {
-    backgroundColor: theme.nightAccent,
-    paddingVertical: 18,
-    borderRadius: 24,
-    alignItems: 'center',
-  },
-  wakeUpText: {
-    color: '#FFFFFF',
-    fontSize: 18,
-    fontWeight: 'bold',
-  },
-  cancelButton: {
-    padding: 16,
-    alignItems: 'center',
-    borderRadius: 24,
-    borderWidth: 1,
-    borderColor: theme.nightBorder,
-  },
-  cancelText: {
-    color: theme.nightMuted,
-    fontSize: 16,
-    fontWeight: '500',
-  },
-});

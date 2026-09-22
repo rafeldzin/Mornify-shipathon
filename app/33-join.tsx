@@ -2,20 +2,23 @@ import { View, Text, TextInput, TouchableOpacity, StyleSheet } from 'react-nativ
 import { useRouter } from 'expo-router';
 import { theme } from '../constants/theme';
 import { useGroup } from '../hooks/useGroup';
+import { useProfile } from '../hooks/useStore';
 import { useState } from 'react';
 
 export default function JoinGroup() {
   const router = useRouter();
   const { joinGroup } = useGroup();
   const [code, setCode] = useState('');
-  const [userName, setUserName] = useState('');
+  const { name: profileName, setName: setProfileName, onboarded } = useProfile();
+  const [userName, setUserName] = useState(profileName);
   const [error, setError] = useState('');
 
   const handleJoin = async () => {
     if (code.length !== 6 || userName.trim().length < 2) return;
     const success = await joinGroup(code, userName.trim());
     if (success) {
-      router.replace('/31-group');
+      if (!profileName) setProfileName(userName.trim());
+      router.replace(onboarded ? '/31-group' : '/05-permission');
     } else {
       setError('Invalid invite code');
     }

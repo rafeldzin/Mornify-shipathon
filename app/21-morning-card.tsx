@@ -1,239 +1,214 @@
-import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
-import { useRouter } from 'expo-router';
-import { theme } from '../constants/theme';
-import { useSleepState } from '../hooks/useStore';
-import { useGroup } from '../hooks/useGroup';
 import { useEffect, useMemo } from 'react';
+import { View, Share, Text } from 'react-native';
+import { useLocalSearchParams, useRouter } from 'expo-router';
+import { palettes, layout } from '../constants/tokens';
+import { useGroup, GroupMember } from '../hooks/useGroup';
+import { useStreak } from '../hooks/useStore';
+import { Icon } from '../components/Icon';
+import { StreakCount } from '../components/StreakCount';
+import {
+  Body,
+  Button,
+  Caption,
+  Card,
+  Clock,
+  GhostButton,
+  Grow,
+  Kicker,
+  Screen,
+} from '../components/ui';
+import { lastCompleteLog, previousCompleteLog } from '../lib/nights';
+import { formatClock, minuteDelta, minutesOfDay, nightOrder, weekday } from '../lib/time';
+import { isOffline } from '../lib/sync';
 
+/**
+ * The product. Two clock times, a comparison, a streak — read in one second by
+ * someone half awake. Never a duration: we know when buttons were pressed, not
+ * how long anyone slept.
+ */
 export default function MorningCard() {
   const router = useRouter();
-  const { sleepAt, wakeAt, streak } = useSleepState();
+  const palette = palettes.dawn;
+  const params = useLocalSearchParams<{ offline?: string }>();
+  const { current } = useStreak();
   const { groupId, groupName, members, userId, refreshGroup } = useGroup();
 
+  const log = lastCompleteLog();
+  const previous = previousCompleteLog();
+  const offline = params.offline === '1' || isOffline();
+
   useEffect(() => {
-    if (groupId) {
-      refreshGroup();
-    }
-  }, [groupId]);
+    if (groupId && !offline) refreshGroup();
+  }, [groupId, offline]);
 
-  const sortedMembers = useMemo(() => {
-    return [...members]
-      .filter(m => m.sleep_at)
-      .sort((a, b) => (a.sleep_at as number) - (b.sleep_at as number));
-  }, [members]);
+  const ranked = useMemo(
+    () =>
+      [...members].sort((a, b) => {
+        if (a.sleep_at === null) return 1;
+        if (b.sleep_at === null) return -1;
+        return nightOrder(a.sleep_at) - nightOrder(b.sleep_at);
+      }),
+    [members]
+  );
 
-  const userRank = useMemo(() => {
-    if (!userId) return null;
-    const index = sortedMembers.findIndex(m => m.user_id === userId);
-    return index !== -1 ? index + 1 : null;
-  }, [sortedMembers, userId]);
+  const rank = userId ? ranked.findIndex((m) => m.user_id === userId) + 1 : 0;
 
-  const formatTime = (timestamp: number | null) => {
-    if (!timestamp) return '--:--';
-    const d = new Date(timestamp);
-    return `${d.getHours().toString().padStart(2, '0')}:${d.getMinutes().toString().padStart(2, '0')}`;
-  };
+  const shareLine = [
+    `${formatClock(log?.sleepAt ?? null)} → ${formatClock(log?.wakeAt ?? null)}`,
+    rank > 0 ? `${ordinal(rank)} of ${ranked.length}` : null,
+    groupName,
+    `${current} nights consistent`,
+    'mornify',
+  ]
+    .filter(Boolean)
+    .join(' · ');
+
+  const handleShare = () => Share.share({ message: shareLine });
 
   return (
-    <View style={styles.container}>
-      <View style={styles.card}>
-        <View style={styles.streakContainer}>
-          <Text style={styles.streakNumber}>{streak}</Text>
-          <Text style={styles.streakLabel}>Day Streak</Text>
-        </View>
+    <Screen palette={palette}>
+      {offline && (
+        <Card palette={palette} style={{ marginBottom: 14, flexDirection: 'row', gap: 8 }}>
+          <Icon name="offline" size={14} color={palette.muted} />
+          <Caption palette={palette} style={{ flex: 1 }}>
+            Saved on your phone. Your group sees it when you{'’'}re back online.
+          </Caption>
+        </Card>
+      )}
 
-        <View style={styles.timesContainer}>
-          <View style={styles.timeBlock}>
-            <Text style={styles.timeLabel}>Bedtime</Text>
-            <Text style={styles.timeValue}>{formatTime(sleepAt)}</Text>
-          </View>
-          <View style={styles.divider} />
-          <View style={styles.timeBlock}>
-            <Text style={styles.timeLabel}>Wake up</Text>
-            <Text style={styles.timeValue}>{formatTime(wakeAt)}</Text>
-          </View>
-        </View>
+      <Kicker palette={palette}>{log ? weekday(log.sleepAt ?? 0) : ''}</Kicker>
 
-        {groupId && (
-          <View style={styles.groupInfoContainer}>
-            <View style={styles.groupHeader}>
-              <Text style={styles.groupName}>{groupName}</Text>
-              <Text style={styles.groupCount}>{members.length} people</Text>
-            </View>
-            {sortedMembers.slice(0, 3).map((m, i) => (
-              <View key={m.user_id} style={[styles.memberRow, m.user_id === userId && styles.youRow]}>
-                <Text style={styles.rank}>{i + 1}</Text>
-                <View style={styles.avatar}>
-                  <Text style={styles.avatarText}>{m.name.substring(0, 2).toUpperCase()}</Text>
-                </View>
-                <Text style={styles.memberName}>{m.user_id === userId ? 'You' : m.name}</Text>
-                <Text style={styles.memberTime}>{formatTime(m.sleep_at)}</Text>
-              </View>
-            ))}
-            {userRank && userRank > 3 && (
-              <View style={[styles.memberRow, styles.youRow]}>
-                <Text style={styles.rank}>{userRank}</Text>
-                <View style={styles.avatar}>
-                  <Text style={styles.avatarText}>YO</Text>
-                </View>
-                <Text style={styles.memberName}>You</Text>
-                <Text style={styles.memberTime}>{formatTime(sleepAt)}</Text>
-              </View>
-            )}
-          </View>
-        )}
+      <View style={{ flexDirection: 'row', alignItems: 'baseline', gap: 9, marginTop: 12 }}>
+        <Clock value={formatClock(log?.sleepAt ?? null)} palette={palette} />
+        <Icon name="arrow" size={14} color={palette.muted} />
+        <Clock value={formatClock(log?.wakeAt ?? null)} palette={palette} />
       </View>
+      <Caption palette={palette} style={{ marginTop: 7 }}>
+        {describeAgainstYesterday(log?.sleepAt ?? null, previous?.sleepAt ?? null)}
+      </Caption>
 
-      <TouchableOpacity 
-        style={styles.doneButton} 
-        onPress={() => router.replace('/23-home-dawn')}
-      >
-        <Text style={styles.doneButtonText}>Done</Text>
-      </TouchableOpacity>
+      {groupId && (
+        <Card palette={palette} style={{ marginTop: 16, opacity: offline ? 0.5 : 1 }}>
+          <View style={styles.groupHeader}>
+            <Caption palette={palette}>{groupName}</Caption>
+            <Caption palette={palette}>
+              {offline ? 'waiting for sync' : `${members.length} people`}
+            </Caption>
+          </View>
+          {ranked.slice(0, 4).map((member, index) => (
+            <MemberRow
+              key={member.user_id}
+              member={member}
+              index={index}
+              you={member.user_id === userId}
+              palette={palette}
+            />
+          ))}
+        </Card>
+      )}
+
+      <Grow />
+
+      <Card palette={palette} style={styles.streakCard}>
+        <StreakCount count={current} palette={palette} />
+        <Caption palette={palette}>{offline ? 'counted locally' : 'consistent'}</Caption>
+      </Card>
+
+      <View style={{ flexDirection: 'row', gap: 9 }}>
+        <GhostButton label="Share" palette={palette} onPress={handleShare} style={{ flex: 1 }} />
+        <Button
+          label="Done"
+          palette={palette}
+          onPress={() => router.replace('/10-home-night')}
+          style={{ flex: 1 }}
+        />
+      </View>
+    </Screen>
+  );
+}
+
+function MemberRow({
+  member,
+  index,
+  you,
+  palette,
+}: {
+  member: GroupMember;
+  index: number;
+  you: boolean;
+  palette: typeof palettes.dawn;
+}) {
+  const missing = member.sleep_at === null;
+  return (
+    <View
+      style={[
+        styles.row,
+        { borderBottomColor: palette.border },
+        you && { backgroundColor: 'rgba(245,147,50,0.09)' },
+        // Never shamed, only greyed.
+        missing && { opacity: 0.42 },
+      ]}
+    >
+      <Text style={[styles.rank, { color: palette.muted }]}>{missing ? '—' : index + 1}</Text>
+      <View style={[styles.avatar, { backgroundColor: palette.border }]}>
+        <Text style={{ fontSize: 9.5, fontWeight: '600', color: palette.muted }}>
+          {member.name.slice(0, 2).toUpperCase()}
+        </Text>
+      </View>
+      <Body palette={palette} style={{ flex: 1 }}>
+        {you ? 'You' : member.name}
+      </Body>
+      <Body palette={palette} muted>
+        {missing ? 'no log' : formatClock(member.sleep_at)}
+      </Body>
     </View>
   );
 }
 
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: theme.dawnBg,
-    justifyContent: 'center',
-    padding: 24,
-  },
-  card: {
-    backgroundColor: theme.dawnSurface,
-    borderRadius: 24,
-    padding: 24,
-    borderWidth: 1,
-    borderColor: theme.dawnBorder,
-    shadowColor: theme.dawnText,
-    shadowOffset: { width: 0, height: 8 },
-    shadowOpacity: 0.05,
-    shadowRadius: 16,
-    elevation: 4,
-    alignItems: 'center',
-    marginBottom: 48,
-  },
-  streakContainer: {
-    alignItems: 'center',
-    marginBottom: 32,
-  },
-  streakNumber: {
-    fontSize: 72,
-    fontWeight: '900',
-    color: theme.streakFlame,
-    marginBottom: 4,
-  },
-  streakLabel: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: theme.dawnMuted,
-    textTransform: 'uppercase',
-    letterSpacing: 1.5,
-  },
-  timesContainer: {
-    flexDirection: 'row',
-    width: '100%',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    backgroundColor: theme.dawnBg,
-    padding: 16,
-    borderRadius: 16,
-    marginBottom: 16,
-  },
-  timeBlock: {
-    alignItems: 'center',
-    flex: 1,
-  },
-  timeLabel: {
-    fontSize: 12,
-    color: theme.dawnMuted,
-    marginBottom: 4,
-    fontWeight: '500',
-  },
-  timeValue: {
-    fontSize: 20,
-    fontWeight: '700',
-    color: theme.dawnText,
-  },
-  divider: {
-    width: 1,
-    height: 32,
-    backgroundColor: theme.dawnBorder,
-  },
-  groupInfoContainer: {
-    width: '100%',
-    marginTop: 8,
-    borderTopWidth: 1,
-    borderTopColor: theme.dawnBorder,
-    paddingTop: 16,
-  },
+function describeAgainstYesterday(sleepAt: number | null, previousSleepAt: number | null): string {
+  if (sleepAt === null) return '';
+  if (previousSleepAt === null) return 'Your first night on the board.';
+  const delta = minuteDelta(minutesOfDay(sleepAt), minutesOfDay(previousSleepAt));
+  if (Math.abs(delta) < 3) return 'Same time as yesterday';
+  return `${Math.abs(delta)} minutes ${delta > 0 ? 'later' : 'earlier'} than yesterday`;
+}
+
+const ordinal = (n: number) => {
+  const suffix = ['th', 'st', 'nd', 'rd'][((n + 90) % 100 - 10) % 10 - 1] ?? 'th';
+  return `${n}${suffix}`;
+};
+
+const styles = {
   groupHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 12,
+    flexDirection: 'row' as const,
+    justifyContent: 'space-between' as const,
+    alignItems: 'center' as const,
+    marginBottom: 9,
   },
-  groupName: {
-    fontSize: 14,
-    color: theme.dawnText,
-    fontWeight: '600',
-  },
-  groupCount: {
-    fontSize: 12,
-    color: theme.dawnMuted,
-  },
-  memberRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingVertical: 8,
-  },
-  youRow: {
-    backgroundColor: 'rgba(245,147,50,.09)',
-    marginHorizontal: -8,
-    paddingHorizontal: 8,
-    borderRadius: 8,
+  row: {
+    flexDirection: 'row' as const,
+    alignItems: 'center' as const,
+    gap: 9,
+    paddingVertical: 9,
+    borderBottomWidth: 1,
+    borderRadius: 7,
+    paddingHorizontal: 4,
   },
   rank: {
-    width: 20,
-    fontSize: 12,
-    color: theme.dawnMuted,
+    fontSize: 10.5,
+    width: 15,
   },
   avatar: {
-    width: 24,
-    height: 24,
-    borderRadius: 12,
-    backgroundColor: theme.dawnBorder,
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginRight: 8,
+    width: layout.avatar,
+    height: layout.avatar,
+    borderRadius: layout.avatar / 2,
+    alignItems: 'center' as const,
+    justifyContent: 'center' as const,
   },
-  avatarText: {
-    fontSize: 8,
-    fontWeight: 'bold',
-    color: theme.dawnMuted,
+  streakCard: {
+    flexDirection: 'row' as const,
+    alignItems: 'center' as const,
+    justifyContent: 'space-between' as const,
+    marginBottom: 11,
   },
-  memberName: {
-    flex: 1,
-    fontSize: 14,
-    color: theme.dawnText,
-    fontWeight: '500',
-  },
-  memberTime: {
-    fontSize: 14,
-    color: theme.dawnText,
-    fontWeight: '600',
-  },
-  doneButton: {
-    backgroundColor: theme.dawnText,
-    paddingVertical: 18,
-    borderRadius: 24,
-    alignItems: 'center',
-  },
-  doneButtonText: {
-    color: theme.dawnSurface,
-    fontSize: 18,
-    fontWeight: 'bold',
-  },
-});
+};

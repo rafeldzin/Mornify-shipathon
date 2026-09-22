@@ -95,6 +95,25 @@ export function useGroup() {
     return false;
   };
 
+  /** Leaving clears the group locally first — the nights stay on the device. */
+  const leaveGroup = async () => {
+    if (userId && groupId) {
+      await supabase
+        .from('memberships')
+        .delete()
+        .eq('user_id', userId)
+        .eq('group_id', groupId);
+    }
+    storage.delete('group_id');
+    storage.delete('group_name');
+    storage.delete('invite_code');
+    storage.delete('group_members');
+    setGroupId(null);
+    setGroupName(null);
+    setInviteCode(null);
+    setMembers([]);
+  };
+
   const refreshGroup = async () => {
     if (!groupId || !userId) return;
     
@@ -116,10 +135,23 @@ export function useGroup() {
     }
   };
 
-  const syncLog = async (sleepAt: number | null, wakeAt: number | null) => {
+  const syncLog = async (
+    sleepAt: number | null,
+    wakeAt: number | null,
+    source: 'tap' | 'alarm' | 'morning_fix' = 'tap',
+    loggedAt: number = Date.now()
+  ) => {
     if (!userId) return;
-    
-    const logData = { user_id: userId, sleep_at: sleepAt ? new Date(sleepAt).toISOString() : null, wake_at: wakeAt ? new Date(wakeAt).toISOString() : null };
+
+    // logged_at travels with the row: a night recalled the next morning is not
+    // the same as one logged live, and only the source column can say which.
+    const logData = {
+      user_id: userId,
+      sleep_at: sleepAt ? new Date(sleepAt).toISOString() : null,
+      wake_at: wakeAt ? new Date(wakeAt).toISOString() : null,
+      source,
+      logged_at: new Date(loggedAt).toISOString(),
+    };
     
     const { error } = await supabase.from('sleep_logs').insert([logData]);
     if (error) {
@@ -157,6 +189,7 @@ export function useGroup() {
     userId,
     createGroup,
     joinGroup,
+    leaveGroup,
     refreshGroup,
     syncLog,
   };

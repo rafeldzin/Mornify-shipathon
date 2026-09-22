@@ -1,89 +1,178 @@
-import { MMKV } from 'react-native-mmkv';
-import { useState } from 'react';
+import { useCallback, useEffect, useMemo } from 'react';
+import {
+  useMMKVBoolean,
+  useMMKVNumber,
+  useMMKVObject,
+  useMMKVString,
+} from 'react-native-mmkv';
+import { storage, keys } from '../lib/storage';
+import {
+  SleepLog,
+  LogSource,
+  readLogs,
+  startNight,
+  recordWake,
+  discardNight,
+  freezeNight,
+  upsertLog,
+} from '../lib/nights';
+import {
+  DEFAULT_BASELINE_MINUTES,
+  computeStreak,
+  streakRisk,
+} from '../lib/streak';
+import { nightKey, now } from '../lib/time';
 
-export const storage = new MMKV();
+export { storage } from '../lib/storage';
 
-export function useSleepState() {
-  const [sleepAt, setSleepAt] = useState<number | null>(() => {
-    const val = storage.getNumber('sleep_at');
-    return val !== undefined && !isNaN(val) ? val : null;
-  });
-  
-  const [alarmTime, setAlarmTime] = useState<number | null>(() => {
-    const val = storage.getNumber('alarm_time');
-    return val !== undefined && !isNaN(val) ? val : null;
-  });
+export interface ActiveNight {
+  night: string;
+  sleepAt: number;
+  alarmAt: number | null;
+  notificationId: string | null;
+  /** The alarm was downgraded to a plain reminder for this night. */
+  reminderOnly?: boolean;
+}
 
-  const [wakeAt, setWakeAt] = useState<number | null>(() => {
-    const val = storage.getNumber('wake_at');
-    return val !== undefined && !isNaN(val) ? val : null;
-  });
+export function useProfile() {
+  const [name, setName] = useMMKVString(keys.name, storage);
+  const [baseline, setBaseline] = useMMKVNumber(keys.baselineBedtime, storage);
+  const [nudge, setNudge] = useMMKVBoolean(keys.nudgeEnabled, storage);
+  const [onboarded, setOnboarded] = useMMKVBoolean(keys.onboarded, storage);
 
-  const [streak, setStreak] = useState<number>(() => {
-    const val = storage.getNumber('streak');
-    return val !== undefined && !isNaN(val) ? val : 0;
-  });
-
-  const [freezesLeft, setFreezesLeft] = useState<number>(() => {
-    const val = storage.getNumber('freezes_left');
-    return val !== undefined && !isNaN(val) ? val : 0;
-  });
-
-  const saveSleepAt = (timestamp: number) => {
-    storage.set('sleep_at', timestamp);
-    setSleepAt(timestamp);
+  return {
+    name: name ?? '',
+    /** Usual bedtime in minutes from midnight. Seeds the consistency baseline. */
+    baselineMinutes: baseline ?? DEFAULT_BASELINE_MINUTES,
+    nudgeEnabled: nudge ?? true,
+    onboarded: onboarded ?? false,
+    setName,
+    setBaselineMinutes: setBaseline,
+    setNudgeEnabled: setNudge,
+    completeOnboarding: () => setOnboarded(true),
   };
+}
 
-  const saveAlarmTime = (timestamp: number) => {
-    storage.set('alarm_time', timestamp);
-    setAlarmTime(timestamp);
-  };
+/** The night log, re-read whenever anything writes to it. */
+export function useNights() {
+  const [raw] = useMMKVString(keys.logs, storage);
+  const logs = useMemo<SleepLog[]>(() => readLogs(), [raw]);
 
-  const saveWakeAtAndIncrementStreak = (timestamp: number) => {
-    storage.set('wake_at', timestamp);
-    setWakeAt(timestamp);
-    const newStreak = streak + 1;
-    storage.set('streak', newStreak);
-    setStreak(newStreak);
-  };
+  const begin = useCallback(
+    (sleepAt: number, source: LogSource = 'tap') => startNight(sleepAt, source),
+    []
+  );
+  const wake = useCallback((wakeAt: number, night?: string) => recordWake(wakeAt, night), []);
+  const discard = useCallback((night: string) => discardNight(night), []);
+  const freeze = useCallback((night: string) => freezeNight(night), []);
+  const patch = useCallback(
+    (night: string, values: Partial<SleepLog>) => upsertLog(night, values),
+    []
+  );
 
-  const addFreezes = (amount: number) => {
-    const newAmount = freezesLeft + amount;
-    storage.set('freezes_left', newAmount);
-    setFreezesLeft(newAmount);
-    return newAmount;
-  };
-  
-  const useFreeze = () => {
-    if (freezesLeft > 0) {
-      const newAmount = freezesLeft - 1;
-      storage.set('freezes_left', newAmount);
-      setFreezesLeft(newAmount);
+  return { logs, begin, wake, discard, freeze, patch };
+}
+
+export function useActiveNight() {
+  const [active, setActive] = useMMKVObject<ActiveNight>(keys.activeNight, storage);
+
+  const open = useCallback(
+    (sleepAt: number) => {
+      setActive({ night: nightKey(sleepAt), sleepAt, alarmAt: null, notificationId: null });
+    },
+    [setActive]
+  );
+
+  const setAlarm = useCallback(
+    (alarmAt: number | null, notificationId: string | null, reminderOnly = false) => {
+      setActive((current) =>
+        current ? { ...current, alarmAt, notificationId, reminderOnly } : current
+      );
+    },
+    [setActive]
+  );
+
+  const clear = useCallback(() => setActive(undefined), [setActive]);
+
+  return { active: active ?? null, open, setAlarm, clear };
+}
+
+export function useFreezes() {
+  const [freezes, setFreezes] = useMMKVNumber(keys.freezesLeft, storage);
+  const freezesLeft = freezes ?? 0;
+
+  const addFreezes = useCallback(
+    (amount: number) => {
+      const next = (storage.getNumber(keys.freezesLeft) ?? 0) + amount;
+      setFreezes(next);
+      return next;
+    },
+    [setFreezes]
+  );
+
+  /** Spends one freeze on the given night. Returns false when there is none. */
+  const spendFreeze = useCallback(
+    (night: string) => {
+      const left = storage.getNumber(keys.freezesLeft) ?? 0;
+      if (left <= 0) return false;
+      setFreezes(left - 1);
+      freezeNight(night);
       return true;
-    }
-    return false;
-  };
+    },
+    [setFreezes]
+  );
 
-  const clearSleepState = () => {
-    storage.delete('sleep_at');
-    storage.delete('alarm_time');
-    storage.delete('wake_at');
-    setSleepAt(null);
-    setAlarmTime(null);
-    setWakeAt(null);
-  };
+  return { freezesLeft, addFreezes, spendFreeze };
+}
 
-  return { 
-    sleepAt, 
-    saveSleepAt, 
-    alarmTime, 
-    saveAlarmTime, 
-    wakeAt, 
-    streak, 
+export function useStreak() {
+  const { logs } = useNights();
+  const { baselineMinutes } = useProfile();
+  const [storedLongest, setStoredLongest] = useMMKVNumber(keys.longestStreak, storage);
+
+  const result = useMemo(
+    () => computeStreak(logs, baselineMinutes, now()),
+    [logs, baselineMinutes]
+  );
+
+  const longest = Math.max(result.longest, storedLongest ?? 0);
+
+  useEffect(() => {
+    if (longest > (storedLongest ?? 0)) setStoredLongest(longest);
+  }, [longest, storedLongest, setStoredLongest]);
+
+  const risk = useMemo(
+    () => streakRisk(logs, baselineMinutes, now(), result.current),
+    [logs, baselineMinutes, result.current]
+  );
+
+  return {
+    current: result.current,
+    longest,
+    counted: result.counted,
+    ...risk,
+  };
+}
+
+/**
+ * Compatibility surface for the group and paywall screens. New screens should
+ * take useStreak / useNights / useFreezes directly.
+ */
+export function useSleepState() {
+  const { logs } = useNights();
+  const { current } = useStreak();
+  const { freezesLeft, addFreezes, spendFreeze } = useFreezes();
+  const { active } = useActiveNight();
+
+  const latest = logs.find((l) => l.sleepAt !== null);
+
+  return {
+    streak: current,
     freezesLeft,
     addFreezes,
-    useFreeze,
-    saveWakeAtAndIncrementStreak, 
-    clearSleepState 
+    spendFreeze,
+    sleepAt: active?.sleepAt ?? latest?.sleepAt ?? null,
+    wakeAt: latest?.wakeAt ?? null,
+    alarmTime: active?.alarmAt ?? null,
   };
 }

@@ -1,0 +1,6 @@
+{
+  // Use the TypeScript that ships with the project instead of the one bundled
+  // with the editor, so what shows up red here matches `npm run typecheck`.
+  "typescript.tsdk": "node_modules/typescript/lib",
+  "typescript.enablePromptUseWorkspaceTsdk": true
+}

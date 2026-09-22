@@ -2,19 +2,23 @@ import { View, Text, TextInput, TouchableOpacity, StyleSheet } from 'react-nativ
 import { useRouter } from 'expo-router';
 import { theme } from '../constants/theme';
 import { useGroup } from '../hooks/useGroup';
+import { useProfile } from '../hooks/useStore';
 import { useState } from 'react';
 
 export default function CreateGroup() {
   const router = useRouter();
   const { createGroup } = useGroup();
   const [name, setName] = useState('');
-  const [userName, setUserName] = useState('');
+  const { name: profileName, setName: setProfileName, onboarded } = useProfile();
+  const [userName, setUserName] = useState(profileName);
 
   const handleCreate = async () => {
     if (name.trim().length < 2 || userName.trim().length < 2) return;
     const success = await createGroup(name.trim(), userName.trim());
     if (success) {
-      router.replace('/30-group-empty');
+      if (!profileName) setProfileName(userName.trim());
+      // Arriving here from onboarding, the group step is step 3 of 3.
+      router.replace(onboarded ? '/30-group-empty' : '/05-permission');
     }
   };
 

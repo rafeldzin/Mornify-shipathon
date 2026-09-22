@@ -1,166 +1,101 @@
-import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
+import { useState } from 'react';
+import { View, TouchableOpacity, StyleSheet } from 'react-native';
 import { useRouter } from 'expo-router';
-import { theme } from '../constants/theme';
-import { useSleepState } from '../hooks/useStore';
+import { palettes, layout } from '../constants/tokens';
+import { useFreezes, useStreak } from '../hooks/useStore';
 import { usePurchases } from '../hooks/usePurchases';
-import BottomSheet from '@gorhom/bottom-sheet';
-import { useRef, useMemo } from 'react';
+import { Icon } from '../components/Icon';
+import { Body, Button, Caption, Card, HeadingM, LinkButton } from '../components/ui';
 
+/**
+ * Fires when the streak is genuinely minutes from breaking — never at install,
+ * never on a timer. The copy tells the user to use a freeze and go to sleep: an
+ * app about sleep that keeps you awake selling things has lost the plot.
+ */
 export default function Paywall() {
   const router = useRouter();
-  const { streak } = useSleepState();
+  const palette = palettes.night;
+  const { current, minutesLeft } = useStreak();
+  const { freezesLeft } = useFreezes();
   const { packages, purchaseFreeze } = usePurchases();
-  const bottomSheetRef = useRef<BottomSheet>(null);
-  const snapPoints = useMemo(() => ['60%'], []);
+  const [busy, setBusy] = useState(false);
 
-  const handlePurchase = async () => {
-    // Attempt to buy the 1-freeze package
-    const singleFreezePkg = packages.find(p => p.product.identifier.includes('1_freeze'));
-    if (singleFreezePkg) {
-      const success = await purchaseFreeze(singleFreezePkg);
-      if (success) {
-        router.replace('/41-freeze-ok');
-      }
-    } else {
-      // Fallback for hackathon demo if RevenueCat fails to fetch
+  const single = packages.find((p) => p.product.identifier.includes('1_freeze'));
+  const price = single?.product.priceString ?? 'Rp 9.000';
+
+  const handleUse = async () => {
+    // A freeze already on the shelf is used without a paywall transaction.
+    if (freezesLeft > 0) {
       router.replace('/41-freeze-ok');
+      return;
     }
+    if (!single) return;
+    setBusy(true);
+    const bought = await purchaseFreeze(single);
+    setBusy(false);
+    if (bought) router.replace('/41-freeze-ok');
   };
 
   return (
     <View style={styles.container}>
-      <TouchableOpacity 
-        style={styles.backdrop} 
-        activeOpacity={1} 
-        onPress={() => router.back()} 
-      />
-      <BottomSheet
-        ref={bottomSheetRef}
-        index={0}
-        snapPoints={snapPoints}
-        enablePanDownToClose
-        onClose={() => router.back()}
-        backgroundStyle={{ backgroundColor: theme.nightSurface }}
-        handleIndicatorStyle={{ backgroundColor: theme.nightMuted }}
-      >
-        <View style={styles.contentContainer}>
-          <View style={styles.iconPlaceholder}>
-            <Text style={styles.iconText}>❄️</Text>
-          </View>
-          
-          <Text style={styles.title}>Your {streak} nights end{'\n'}in 8 minutes</Text>
-          <Text style={styles.subtitle}>
+      <TouchableOpacity style={styles.scrim} activeOpacity={1} onPress={() => router.back()} />
+      <View style={[styles.sheet, { backgroundColor: palette.surface, borderColor: palette.border }]}>
+        <View style={{ alignItems: 'center' }}>
+          <Icon name="freeze" size={44} color={palette.text} />
+          <HeadingM palette={palette} style={{ marginTop: 14, textAlign: 'center' }}>
+            Your {current} nights end{'\n'}in {Math.max(minutesLeft, 1)} minutes
+          </HeadingM>
+          <Body palette={palette} muted style={{ marginTop: 9, textAlign: 'center' }}>
             A freeze keeps the streak alive for one night. Use it and go to sleep.
-          </Text>
-
-          <View style={styles.priceCard}>
-            <View>
-              <Text style={styles.packageName}>1 streak freeze</Text>
-              <Text style={styles.packageDesc}>One night</Text>
-            </View>
-            <Text style={styles.priceText}>
-              {packages.find(p => p.product.identifier.includes('1_freeze'))?.product.priceString || 'Rp 9.000'}
-            </Text>
-          </View>
-
-          <TouchableOpacity style={styles.buyButton} onPress={handlePurchase}>
-            <Text style={styles.buyButtonText}>Use a freeze</Text>
-          </TouchableOpacity>
-
-          <TouchableOpacity style={styles.cancelButton} onPress={() => router.back()}>
-            <Text style={styles.cancelButtonText}>Not tonight</Text>
-          </TouchableOpacity>
+          </Body>
         </View>
-      </BottomSheet>
+
+        <Card palette={palette} style={styles.priceRow}>
+          <View>
+            <Body palette={palette}>1 streak freeze</Body>
+            <Caption palette={palette}>One night</Caption>
+          </View>
+          {/* Price is visible before the tap, always. */}
+          <Body palette={palette} style={{ fontWeight: '600' }}>
+            {freezesLeft > 0 ? `${freezesLeft} left` : price}
+          </Body>
+        </Card>
+
+        <Button
+          label={busy ? 'Talking to the store' : 'Use a freeze'}
+          palette={palette}
+          disabled={busy || (freezesLeft === 0 && !single)}
+          onPress={handleUse}
+          style={{ marginTop: 12 }}
+        />
+        {freezesLeft === 0 && !single && (
+          <Caption palette={palette} style={{ textAlign: 'center', marginTop: 8 }}>
+            The store is not reachable right now. Tonight is still yours until the window closes.
+          </Caption>
+        )}
+        <LinkButton label="Not tonight" palette={palette} onPress={() => router.back()} />
+      </View>
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-  },
-  backdrop: {
+  container: { flex: 1, justifyContent: 'flex-end' },
+  scrim: {
     ...StyleSheet.absoluteFillObject,
-    backgroundColor: 'rgba(11,17,32,0.55)',
+    backgroundColor: layout.scrim,
   },
-  contentContainer: {
-    flex: 1,
-    padding: 24,
-    alignItems: 'center',
+  sheet: {
+    borderTopLeftRadius: layout.sheetRadius,
+    borderTopRightRadius: layout.sheetRadius,
+    borderTopWidth: 1,
+    padding: 18,
+    paddingBottom: 26,
   },
-  iconPlaceholder: {
-    width: 64,
-    height: 64,
-    borderRadius: 16,
-    backgroundColor: theme.nightBorder,
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginBottom: 16,
-  },
-  iconText: {
-    fontSize: 28,
-  },
-  title: {
-    fontSize: 22,
-    fontWeight: 'bold',
-    color: theme.nightText,
-    textAlign: 'center',
-    marginBottom: 12,
-  },
-  subtitle: {
-    fontSize: 14,
-    color: theme.nightText,
-    opacity: 0.72,
-    textAlign: 'center',
-    marginBottom: 24,
-    paddingHorizontal: 16,
-  },
-  priceCard: {
-    width: '100%',
-    backgroundColor: theme.nightBg,
-    borderRadius: 14,
-    padding: 16,
-    borderWidth: 1,
-    borderColor: theme.nightBorder,
+  priceRow: {
+    marginTop: 18,
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 24,
-  },
-  packageName: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: theme.nightText,
-    marginBottom: 4,
-  },
-  packageDesc: {
-    fontSize: 12,
-    color: theme.nightMuted,
-  },
-  priceText: {
-    fontSize: 16,
-    fontWeight: 'bold',
-    color: theme.nightText,
-  },
-  buyButton: {
-    backgroundColor: theme.nightAccent,
-    width: '100%',
-    paddingVertical: 16,
-    borderRadius: 24,
-    alignItems: 'center',
-    marginBottom: 16,
-  },
-  buyButtonText: {
-    color: '#FFFFFF',
-    fontSize: 16,
-    fontWeight: 'bold',
-  },
-  cancelButton: {
-    paddingVertical: 12,
-  },
-  cancelButtonText: {
-    color: theme.nightMuted,
-    fontSize: 14,
   },
 });

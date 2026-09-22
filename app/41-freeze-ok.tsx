@@ -1,99 +1,58 @@
-import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
+import { useEffect, useRef, useState } from 'react';
+import { View } from 'react-native';
 import { useRouter } from 'expo-router';
-import { theme } from '../constants/theme';
-import { useSleepState } from '../hooks/useStore';
+import { palettes } from '../constants/tokens';
+import { useFreezes, useStreak } from '../hooks/useStore';
+import { Icon } from '../components/Icon';
+import { StreakCount } from '../components/StreakCount';
+import { Body, Button, Grow, HeadingM, Screen } from '../components/ui';
+import { getLog } from '../lib/nights';
+import { nightKey, now } from '../lib/time';
 
+/**
+ * Where the freeze is actually spent: the purchase is upstream, this is the
+ * night being marked. Confirmation routes straight back into the core loop —
+ * no receipt screen, no bundle upsell.
+ */
 export default function FreezeOk() {
   const router = useRouter();
-  const { streak } = useSleepState();
+  const palette = palettes.night;
+  const { spendFreeze } = useFreezes();
+  const { current } = useStreak();
+  const spent = useRef(false);
+  const [saved, setSaved] = useState(false);
+
+  useEffect(() => {
+    if (spent.current) return;
+    spent.current = true;
+    const tonight = nightKey(now());
+    if (getLog(tonight)?.frozen) {
+      setSaved(true);
+      return;
+    }
+    setSaved(spendFreeze(tonight));
+  }, [spendFreeze]);
 
   return (
-    <View style={styles.container}>
-      <View style={styles.content}>
-        <View style={styles.iconPlaceholder}>
-          <Text style={styles.iconText}>✅</Text>
-        </View>
-        
-        <Text style={styles.title}>Streak saved</Text>
-        
-        <View style={styles.streakBadge}>
-          <Text style={styles.streakText}>🔥 {streak} nights</Text>
-        </View>
-
-        <Text style={styles.message}>
-          Tonight doesn't count against you. Sleep well.
-        </Text>
-      </View>
-
-      <TouchableOpacity 
-        style={styles.button} 
-        onPress={() => router.replace('/12-sleeping')}
-      >
-        <Text style={styles.buttonText}>Going to sleep</Text>
-      </TouchableOpacity>
-    </View>
+    <Screen palette={palette} style={{ alignItems: 'center' }}>
+      <Grow />
+      <Icon name="check" size={88} color={palette.text} round />
+      <HeadingM palette={palette} style={{ marginTop: 22 }}>
+        {saved ? 'Streak saved' : 'No freeze to use'}
+      </HeadingM>
+      <View style={{ height: 12 }} />
+      <StreakCount count={current} palette={palette} />
+      <Body palette={palette} muted style={{ marginTop: 14, maxWidth: 200, textAlign: 'center' }}>
+        {saved
+          ? "Tonight doesn't count against you. Sleep well."
+          : 'Tonight still counts if you start it before the window closes.'}
+      </Body>
+      <Grow />
+      <Button
+        label="Going to sleep"
+        palette={palette}
+        onPress={() => router.replace('/11-alarm-set')}
+      />
+    </Screen>
   );
 }
-
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: theme.nightBg,
-    padding: 24,
-    paddingTop: 80,
-    justifyContent: 'space-between',
-  },
-  content: {
-    flex: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  iconPlaceholder: {
-    width: 96,
-    height: 96,
-    borderRadius: 48,
-    backgroundColor: theme.nightBorder,
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginBottom: 32,
-  },
-  iconText: {
-    fontSize: 48,
-  },
-  title: {
-    fontSize: 24,
-    fontWeight: 'bold',
-    color: theme.nightText,
-    marginBottom: 16,
-  },
-  streakBadge: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: 24,
-  },
-  streakText: {
-    fontSize: 16,
-    fontWeight: 'bold',
-    color: theme.streakFlame,
-  },
-  message: {
-    fontSize: 16,
-    color: theme.nightText,
-    opacity: 0.72,
-    textAlign: 'center',
-    maxWidth: 220,
-    lineHeight: 24,
-  },
-  button: {
-    backgroundColor: theme.nightAccent,
-    paddingVertical: 18,
-    borderRadius: 24,
-    alignItems: 'center',
-    marginBottom: 24,
-  },
-  buttonText: {
-    color: '#FFFFFF',
-    fontSize: 18,
-    fontWeight: 'bold',
-  },
-});

@@ -1,76 +1,67 @@
-import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
+import { useEffect, useState } from 'react';
+import { View } from 'react-native';
 import { useRouter } from 'expo-router';
-import { theme } from '../constants/theme';
-import { useSleepState } from '../hooks/useStore';
+import { palettes } from '../constants/tokens';
+import { useActiveNight, useNights } from '../hooks/useStore';
 import { useGroup } from '../hooks/useGroup';
-import { useState, useEffect } from 'react';
+import { Icon } from '../components/Icon';
+import { Body, Button, Clock, Grow, LinkButton, Screen } from '../components/ui';
+import { alarmTimestampFor, cancelAlarm, isReminderMode, scheduleAlarm } from '../lib/alarm';
+import { MINUTE, formatClock, now, weekday } from '../lib/time';
 
+const SNOOZE_MINUTES = 9;
+
+/**
+ * Dawn starts here — the app changes character at the exact moment the day
+ * does, before the user has done anything.
+ */
 export default function AlarmRinging() {
   const router = useRouter();
-  const { sleepAt, saveWakeAtAndIncrementStreak } = useSleepState();
+  const palette = palettes.dawn;
+  const { active, setAlarm, clear } = useActiveNight();
+  const { wake } = useNights();
   const { syncLog } = useGroup();
-  const [currentTime, setCurrentTime] = useState(new Date());
+  const [tick, setTick] = useState(now());
 
   useEffect(() => {
-    const timer = setInterval(() => setCurrentTime(new Date()), 1000);
+    const timer = setInterval(() => setTick(now()), 1000);
     return () => clearInterval(timer);
   }, []);
 
-  const handleWakeUp = () => {
-    saveWakeAtAndIncrementStreak(Date.now());
-    syncLog(sleepAt, Date.now());
+  const handleUp = async () => {
+    const wakeAt = now();
+    if (active) await cancelAlarm(active.notificationId);
+    const log = wake(wakeAt, active?.night);
+    clear();
+    if (log) syncLog(log.sleepAt, log.wakeAt, log.source ?? 'tap', log.loggedAt);
     router.replace('/21-morning-card');
   };
 
-  const formattedTime = `${currentTime.getHours().toString().padStart(2, '0')}:${currentTime.getMinutes().toString().padStart(2, '0')}`;
+  const handleSnooze = async () => {
+    if (active) await cancelAlarm(active.notificationId);
+    const at = now() + SNOOZE_MINUTES * MINUTE;
+    const { id } = await scheduleAlarm(at, isReminderMode());
+    setAlarm(at, id, isReminderMode());
+  };
+
+  const date = new Date(tick);
 
   return (
-    <View style={styles.container}>
-      <View style={styles.content}>
-        <Text style={styles.timeText}>{formattedTime}</Text>
-      </View>
-      
-      <TouchableOpacity style={styles.button} onPress={handleWakeUp}>
-        <Text style={styles.buttonText}>I'm up</Text>
-      </TouchableOpacity>
-    </View>
+    <Screen palette={palette} style={{ alignItems: 'center' }}>
+      <Grow />
+      <Body palette={palette} muted>
+        {weekday(tick)}, {date.getDate()} {date.toLocaleString(undefined, { month: 'long' })}
+      </Body>
+      <Clock value={formatClock(tick)} palette={palette} size="hero" style={{ marginTop: 9 }} />
+      <View style={{ height: 26 }} />
+      <Icon name="sun" size={96} color={palette.text} round />
+      <Grow />
+      <Button label="I'm up" palette={palette} onPress={handleUp} />
+      <LinkButton
+        label={`Snooze ${SNOOZE_MINUTES} min`}
+        palette={palette}
+        onPress={handleSnooze}
+      />
+    </Screen>
   );
 }
-
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: theme.dawnBg,
-    justifyContent: 'space-between',
-    padding: 32,
-    paddingTop: 80,
-    paddingBottom: 48,
-  },
-  content: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  timeText: {
-    fontSize: 72,
-    fontWeight: 'bold',
-    color: theme.dawnText,
-  },
-  button: {
-    backgroundColor: theme.dawnAccent,
-    paddingVertical: 18,
-    paddingHorizontal: 32,
-    borderRadius: 24,
-    alignItems: 'center',
-    shadowColor: theme.dawnAccent,
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3,
-    shadowRadius: 8,
-    elevation: 5,
-  },
-  buttonText: {
-    color: '#FFFFFF',
-    fontSize: 20,
-    fontWeight: 'bold',
-  },
-});

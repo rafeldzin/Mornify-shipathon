@@ -1,16 +1,23 @@
+import { palettes } from './tokens';
+
+/**
+ * Flat aliases kept for the group and freeze screens written before the token
+ * set existed. New code should use useTheme() or palettes directly — this is a
+ * view onto the same values, not a second source of truth.
+ */
 export const theme = {
-  nightBg: '#0B1120',
-  nightSurface: '#151E32',
-  nightBorder: '#253150',
-  nightText: '#E6E8EF',
-  nightMuted: '#8B94AD',
-  nightAccent: '#6C7BFF',
-  sleepingBg: '#070C16',
-  dawnBg: '#FFF8F0',
-  dawnSurface: '#FFFFFF',
-  dawnBorder: '#F0E4D4',
-  dawnText: '#1A1614',
-  dawnMuted: '#7A6E63',
-  dawnAccent: '#F59332',
-  streakFlame: '#E4572E',
+  nightBg: palettes.night.bg,
+  nightSurface: palettes.night.surface,
+  nightBorder: palettes.night.border,
+  nightText: palettes.night.text,
+  nightMuted: palettes.night.muted,
+  nightAccent: palettes.night.accent,
+  sleepingBg: palettes.night.deep,
+  dawnBg: palettes.dawn.bg,
+  dawnSurface: palettes.dawn.surface,
+  dawnBorder: palettes.dawn.border,
+  dawnText: palettes.dawn.text,
+  dawnMuted: palettes.dawn.muted,
+  dawnAccent: palettes.dawn.accent,
+  streakFlame: palettes.night.flame,
 };
